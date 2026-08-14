@@ -1,4 +1,3 @@
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -14,11 +13,33 @@ export default function NewReflection() {
   const [reflectionType, setReflectionType] = useState("");
   const [showTypeMenu, setShowTypeMenu] = useState(false);
 
-  const [date, setDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [day, setDay] = useState("");
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
+
+  const [activeDateMenu, setActiveDateMenu] = useState("");
 
   // ADD REFLECTION TYPES HERE LATER
   const reflectionTypes = ["Placeholder"];
+
+  const days = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
+
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const years = ["2025", "2026", "2027", "2028", "2029", "2030"];
 
   return (
     <ScrollView style={styles.container}>
@@ -38,48 +59,13 @@ export default function NewReflection() {
           />
         </View>
 
-        {/* Reflection Type */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Reflection Type</Text>
-
-          <Pressable
-            style={styles.input}
-            onPress={() => setShowTypeMenu(!showTypeMenu)}
-          >
-            <Text
-              style={reflectionType ? styles.selectedText : styles.placeholder}
-            >
-              {reflectionType || "Select reflection type"}
-            </Text>
-
-            <Text style={styles.arrow}>▼</Text>
-          </Pressable>
-
-          {showTypeMenu && (
-            <View style={styles.dropdown}>
-              {reflectionTypes.map((type) => (
-                <Pressable
-                  key={type}
-                  style={styles.dropdownOption}
-                  onPress={() => {
-                    setReflectionType(type);
-                    setShowTypeMenu(false);
-                  }}
-                >
-                  <Text style={styles.dropdownText}>{type}</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-
         {/* Project/Gig */}
         <View style={styles.field}>
           <Text style={styles.label}>Project/Gig</Text>
 
           <TextInput
             style={styles.input}
-            placeholder="Enter project or gig"
+            placeholder="What was worked on? e.g.: Name of Project"
             placeholderTextColor="#999"
           />
         </View>
@@ -88,29 +74,115 @@ export default function NewReflection() {
         <View style={styles.field}>
           <Text style={styles.label}>Date</Text>
 
-          <Pressable
-            style={styles.input}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text style={styles.selectedText}>{date.toLocaleDateString()}</Text>
+          <View style={styles.dateRow}>
+            {/* Day */}
+            <View style={styles.dateContainer}>
+              <Pressable
+                style={styles.dateInput}
+                onPress={() => {
+                  setActiveDateMenu(activeDateMenu === "day" ? "" : "day");
+                  setShowTypeMenu(false);
+                }}
+              >
+                <Text style={day ? styles.selectedText : styles.placeholder}>
+                  {day || "Day"}
+                </Text>
 
-            <Text style={styles.calendar}>📅</Text>
-          </Pressable>
+                <Text style={styles.arrow}>▼</Text>
+              </Pressable>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
+              {activeDateMenu === "day" && (
+                <View style={styles.dateDropdown}>
+                  <ScrollView nestedScrollEnabled>
+                    {days.map((item) => (
+                      <Pressable
+                        key={item}
+                        style={styles.dropdownOption}
+                        onPress={() => {
+                          setDay(item);
+                          setActiveDateMenu("");
+                        }}
+                      >
+                        <Text style={styles.dropdownText}>{item}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
 
-                if (selectedDate) {
-                  setDate(selectedDate);
-                }
-              }}
-            />
-          )}
+            {/* Month */}
+            <View style={styles.dateContainer}>
+              <Pressable
+                style={styles.dateInput}
+                onPress={() => {
+                  setActiveDateMenu(activeDateMenu === "month" ? "" : "month");
+                  setShowTypeMenu(false);
+                }}
+              >
+                <Text style={month ? styles.selectedText : styles.placeholder}>
+                  {month || "Month"}
+                </Text>
+
+                <Text style={styles.arrow}>▼</Text>
+              </Pressable>
+
+              {activeDateMenu === "month" && (
+                <View style={styles.dateDropdown}>
+                  <ScrollView nestedScrollEnabled>
+                    {months.map((item) => (
+                      <Pressable
+                        key={item}
+                        style={styles.dropdownOption}
+                        onPress={() => {
+                          setMonth(item);
+                          setActiveDateMenu("");
+                        }}
+                      >
+                        <Text style={styles.dropdownText}>{item}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            {/* Year */}
+            <View style={styles.dateContainer}>
+              <Pressable
+                style={styles.dateInput}
+                onPress={() => {
+                  setActiveDateMenu(activeDateMenu === "year" ? "" : "year");
+                  setShowTypeMenu(false);
+                }}
+              >
+                <Text style={year ? styles.selectedText : styles.placeholder}>
+                  {year || "Year"}
+                </Text>
+
+                <Text style={styles.arrow}>▼</Text>
+              </Pressable>
+
+              {activeDateMenu === "year" && (
+                <View style={styles.dateDropdown}>
+                  <ScrollView nestedScrollEnabled>
+                    {years.map((item) => (
+                      <Pressable
+                        key={item}
+                        style={styles.dropdownOption}
+                        onPress={() => {
+                          setYear(item);
+                          setActiveDateMenu("");
+                        }}
+                      >
+                        <Text style={styles.dropdownText}>{item}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+          </View>
         </View>
 
         {/* Continue */}
@@ -190,12 +262,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  calendar: {
-    position: "absolute",
-    right: 15,
-    fontSize: 18,
-  },
-
   dropdown: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -215,6 +281,40 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: 15,
     color: "#000",
+  },
+
+  dateRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  dateContainer: {
+    width: "31%",
+    position: "relative",
+  },
+
+  dateInput: {
+    width: "100%",
+    height: 50,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#000",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+  },
+
+  dateDropdown: {
+    position: "absolute",
+    top: 55,
+    left: 0,
+    right: 0,
+    maxHeight: 200,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#000",
+    borderRadius: 12,
+    zIndex: 100,
   },
 
   continueButton: {
