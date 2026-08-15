@@ -17,6 +17,12 @@ export default function HomeScreen() {
         <Text style={styles.draftTitle}>Continue Draft</Text>
 
         <View style={styles.divider} />
+
+        <View style={styles.emptyDraft}>
+          <Text style={styles.emptyDraftText}>
+            You have no reflections drafted.
+          </Text>
+        </View>
       </View>
 
       {/* Create Reflection Button */}
@@ -36,14 +42,17 @@ export default function HomeScreen() {
 
       <View style={styles.reflectionList}>
         <Pressable style={styles.reflectionCard}>
+          <Text style={styles.emptyReflectionText}>Nothing here</Text>
           <Text style={styles.arrow}>›</Text>
         </Pressable>
 
         <Pressable style={styles.reflectionCard}>
+          <Text style={styles.emptyReflectionText}>Nothing here</Text>
           <Text style={styles.arrow}>›</Text>
         </Pressable>
 
         <Pressable style={styles.reflectionCard}>
+          <Text style={styles.emptyReflectionText}>Nothing here</Text>
           <Text style={styles.arrow}>›</Text>
         </Pressable>
       </View>
@@ -157,5 +166,24 @@ const styles = StyleSheet.create({
   arrow: {
     fontSize: 32,
     color: "#3F2A88",
+  },
+
+  emptyDraft: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  emptyDraftText: {
+    color: "#888",
+    fontSize: 15,
+    textAlign: "center",
+  },
+
+  emptyReflectionText: {
+    color: "#888",
+    fontSize: 15,
+    position: "absolute",
+    alignSelf: "center",
   },
 });
