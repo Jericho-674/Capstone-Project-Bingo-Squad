@@ -111,6 +111,37 @@ export default function TabLayout() {
           href: null,
         }}
       />
+
+      <Tabs.Screen
+        name="assessment-result"
+        options={{
+          href: null,
+          tabBarStyle: { display: "none" },
+          header: () => (
+            <View style={styles.header}>
+              <Pressable
+                accessibilityLabel="Go back"
+                accessibilityRole="button"
+                hitSlop={12}
+                onPress={() => router.back()}
+              >
+                <Ionicons name="arrow-back" size={26} color="#161221" />
+              </Pressable>
+
+              <Text style={styles.headerTitle}>Reflection Diary</Text>
+
+              <Pressable
+                accessibilityLabel="Go to home"
+                accessibilityRole="button"
+                hitSlop={12}
+                onPress={() => router.replace("/(tabs)")}
+              >
+                <Ionicons name="home-outline" size={25} color="#3F2A88" />
+              </Pressable>
+            </View>
+          ),
+        }}
+      />
     </Tabs>
   );
 }
@@ -126,6 +157,12 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5E5",
+  },
+
+  headerTitle: {
+    color: "#161221",
+    fontSize: 18,
+    fontWeight: "700",
   },
 
   dropdown: {
