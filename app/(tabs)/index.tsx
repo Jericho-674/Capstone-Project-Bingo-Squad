@@ -45,7 +45,7 @@ export default function HomeScreen() {
           accessibilityHint="Opens the self and assessor score comparison"
           accessibilityRole="button"
           style={[styles.reflectionCard, styles.completedReflectionCard]}
-          onPress={() => router.push("/assessment-result")}
+          onPress={() => router.push("/")} //needs to be updated ig
         >
           <View>
             <Text style={styles.reflectionTitle}>Sprint 2 Reflection</Text>

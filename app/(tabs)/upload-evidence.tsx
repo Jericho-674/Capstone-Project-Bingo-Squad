@@ -137,11 +137,36 @@ export default function UploadEvidence() {
     label: string;
     onPress: () => void;
   }[] = [
-    { key: "gallery", icon: "image-outline", label: "Gallery", onPress: handlePickImage },
-    { key: "link", icon: "link-outline", label: "Link", onPress: handleOpenLinkModal },
-    { key: "camera", icon: "camera-outline", label: "Camera", onPress: handleTakePhoto },
-    { key: "cloud", icon: "cloud-download-outline", label: "Cloud", onPress: () => handleComingSoon("Cloud Storage") },
-    { key: "document", icon: "document-text-outline", label: "Document", onPress: handlePickDocument },
+    {
+      key: "gallery",
+      icon: "image-outline",
+      label: "Gallery",
+      onPress: handlePickImage,
+    },
+    {
+      key: "link",
+      icon: "link-outline",
+      label: "Link",
+      onPress: handleOpenLinkModal,
+    },
+    {
+      key: "camera",
+      icon: "camera-outline",
+      label: "Camera",
+      onPress: handleTakePhoto,
+    },
+    {
+      key: "cloud",
+      icon: "cloud-download-outline",
+      label: "Cloud",
+      onPress: () => handleComingSoon("Cloud Storage"),
+    },
+    {
+      key: "document",
+      icon: "document-text-outline",
+      label: "Document",
+      onPress: handlePickDocument,
+    },
   ];
 
   const iconFor = (kind: EvidenceItem["kind"]) => {
@@ -212,7 +237,11 @@ export default function UploadEvidence() {
               <View style={styles.evidenceList}>
                 {evidence.map((item) => (
                   <View key={item.id} style={styles.evidenceRow}>
-                    <Ionicons name={iconFor(item.kind)} size={24} color="#3F2A88" />
+                    <Ionicons
+                      name={iconFor(item.kind)}
+                      size={24}
+                      color="#3F2A88"
+                    />
 
                     <View style={styles.evidenceInfo}>
                       <Text style={styles.evidenceName} numberOfLines={1}>
@@ -241,7 +270,7 @@ export default function UploadEvidence() {
           <Pressable
             style={styles.nextButton}
             onPress={() => {
-              router.push("/(tabs)/self-assessment");
+              router.push("/"); // adjust routing later
             }}
           >
             <Text style={styles.nextButtonText}>Next</Text>
@@ -342,17 +371,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  
-  uploadRow: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-},
 
-uploadRowCentered: {
-  flexDirection: "row",
-  justifyContent: "center",
-  columnGap: 24,
-},
+  uploadRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  uploadRowCentered: {
+    flexDirection: "row",
+    justifyContent: "center",
+    columnGap: 24,
+  },
 
   emptyState: {
     backgroundColor: "#FFFFFF",
