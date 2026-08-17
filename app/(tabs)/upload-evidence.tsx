@@ -270,7 +270,7 @@ export default function UploadEvidence() {
           <Pressable
             style={styles.nextButton}
             onPress={() => {
-              router.push("/"); // adjust routing later
+              router.push("/(tabs)/self-assessment");
             }}
           >
             <Text style={styles.nextButtonText}>Next</Text>
