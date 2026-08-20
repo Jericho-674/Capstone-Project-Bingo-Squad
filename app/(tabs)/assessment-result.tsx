@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useWindowDimensions } from "react-native";
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -51,12 +51,7 @@ function pointForScore(
   };
 }
 
-function LineSegment({
-  color,
-  from,
-  thickness = 1,
-  to,
-}: LineSegmentProps) {
+function LineSegment({ color, from, thickness = 1, to }: LineSegmentProps) {
   const xDistance = to.x - from.x;
   const yDistance = to.y - from.y;
   const length = Math.sqrt(xDistance ** 2 + yDistance ** 2);
@@ -117,6 +112,7 @@ function RadarSeries({ center, color, radius, scores }: RadarSeriesProps) {
 function RadarChart({ size }: { size: number }) {
   const center = { x: size / 2, y: size / 2 };
   const radius = size * 0.29;
+
   const outerPoints = [0, 1, 2, 3].map((axisIndex) =>
     pointForScore(center, radius, axisIndex, MAX_SCORE),
   );
@@ -157,6 +153,7 @@ function RadarChart({ size }: { size: number }) {
         radius={radius}
         scores={assessorScores}
       />
+
       <RadarSeries
         center={center}
         color={SELF_COLOR}
@@ -165,10 +162,13 @@ function RadarChart({ size }: { size: number }) {
       />
 
       <Text style={[styles.chartLabel, styles.topLabel]}>Communication</Text>
+
       <Text style={[styles.chartLabel, styles.rightLabel]}>Collaboration</Text>
+
       <Text style={[styles.chartLabel, styles.bottomLabel]}>
         Critical thinking
       </Text>
+
       <Text style={[styles.chartLabel, styles.leftLabel]}>Contribution</Text>
     </View>
   );
@@ -199,8 +199,10 @@ function ScoreCard({
       <View style={[styles.scoreIcon, { backgroundColor: `${color}18` }]}>
         <Ionicons name={icon} size={21} color={color} />
       </View>
+
       <View>
         <Text style={styles.scoreLabel}>{label}</Text>
+
         <Text style={[styles.scoreValue, { color }]}>
           {score}
           <Text style={styles.scoreMaximum}> / 5</Text>
@@ -223,9 +225,12 @@ export default function AssessmentResultScreen() {
         <View style={styles.heading}>
           <View style={styles.eyebrowRow}>
             <View style={styles.eyebrowLine} />
+
             <Text style={styles.eyebrow}>SPRINT 2 · ASSESSED</Text>
           </View>
+
           <Text style={styles.title}>Assessment Result</Text>
+
           <Text style={styles.subtitle}>
             See how you and your assessor rated your performance.
           </Text>
@@ -233,6 +238,7 @@ export default function AssessmentResultScreen() {
 
         <View style={styles.chartCard}>
           <RadarChart size={chartSize} />
+
           <View style={styles.legend}>
             <LegendItem color={SELF_COLOR} label="You" />
             <LegendItem color={ASSESSOR_COLOR} label="Assessor" />
@@ -246,6 +252,7 @@ export default function AssessmentResultScreen() {
             label="You"
             score="4.2"
           />
+
           <ScoreCard
             color={ASSESSOR_COLOR}
             icon="briefcase-outline"
@@ -256,10 +263,12 @@ export default function AssessmentResultScreen() {
 
         <View style={styles.feedbackSection}>
           <Text style={styles.sectionTitle}>Assessor Feedback</Text>
+
           <View style={styles.feedbackCard}>
             <View style={styles.quoteIcon}>
               <Ionicons name="chatbubble-ellipses" size={20} color={PURPLE} />
             </View>
+
             <Text style={styles.feedbackText}>
               Well-structured reflection with thoughtful insights. Your examples
               clearly show how you collaborated with the team and responded to
@@ -268,16 +277,32 @@ export default function AssessmentResultScreen() {
           </View>
         </View>
 
+        {/* Reflection History */}
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.replace("/(tabs)")}
+          onPress={() => router.replace("/reflection-list")}
           style={({ pressed }) => [
             styles.historyButton,
             pressed && styles.historyButtonPressed,
           ]}
         >
           <Ionicons name="time-outline" size={21} color="#FFFFFF" />
+
           <Text style={styles.historyButtonText}>Reflection History</Text>
+        </Pressable>
+
+        {/* Back to Reflector Home */}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.replace("/(tabs)/reflector-home")}
+          style={({ pressed }) => [
+            styles.homeButton,
+            pressed && styles.homeButtonPressed,
+          ]}
+        >
+          <Ionicons name="home-outline" size={21} color={PURPLE} />
+
+          <Text style={styles.homeButtonText}>Back to Reflector Home</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -289,10 +314,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7F6FA",
   },
+
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 36,
   },
+
   content: {
     alignSelf: "center",
     maxWidth: 560,
@@ -300,39 +327,46 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     width: "100%",
   },
+
   heading: {
     marginBottom: 20,
   },
+
   eyebrowRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 8,
     marginBottom: 8,
   },
+
   eyebrowLine: {
     backgroundColor: PURPLE,
     borderRadius: 2,
     height: 3,
     width: 24,
   },
+
   eyebrow: {
     color: PURPLE,
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0.8,
   },
+
   title: {
     color: "#161221",
     fontSize: 30,
     fontWeight: "800",
     letterSpacing: -0.6,
   },
+
   subtitle: {
     color: "#6B6675",
     fontSize: 15,
     lineHeight: 22,
     marginTop: 7,
   },
+
   chartCard: {
     alignItems: "center",
     backgroundColor: "#FFFFFF",
@@ -346,13 +380,16 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 3,
   },
+
   chart: {
     position: "relative",
   },
+
   lineSegment: {
     borderRadius: 3,
     position: "absolute",
   },
+
   dataPoint: {
     borderColor: "#FFFFFF",
     borderRadius: 5,
@@ -361,57 +398,68 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 10,
   },
+
   chartLabel: {
     color: "#4D4857",
     fontSize: 12,
     fontWeight: "600",
     position: "absolute",
   },
+
   topLabel: {
     left: 0,
     textAlign: "center",
     top: 13,
     width: "100%",
   },
+
   rightLabel: {
     right: 8,
     textAlign: "right",
     top: "48%",
   },
+
   bottomLabel: {
     bottom: 12,
     left: 0,
     textAlign: "center",
     width: "100%",
   },
+
   leftLabel: {
     left: 8,
     top: "48%",
   },
+
   legend: {
     flexDirection: "row",
     gap: 20,
   },
+
   legendItem: {
     alignItems: "center",
     flexDirection: "row",
     gap: 7,
   },
+
   legendDot: {
     borderRadius: 4,
     height: 8,
     width: 8,
   },
+
   legendText: {
     color: "#5B5665",
     fontSize: 13,
     fontWeight: "600",
   },
+
   scoreRow: {
     flexDirection: "row",
     gap: 12,
     marginTop: 16,
   },
+
   scoreCard: {
     alignItems: "center",
     backgroundColor: "#FFFFFF",
@@ -424,6 +472,7 @@ const styles = StyleSheet.create({
     minHeight: 84,
     padding: 14,
   },
+
   scoreIcon: {
     alignItems: "center",
     borderRadius: 12,
@@ -431,30 +480,36 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 42,
   },
+
   scoreLabel: {
     color: "#6B6675",
     fontSize: 13,
     fontWeight: "600",
   },
+
   scoreValue: {
     fontSize: 24,
     fontWeight: "800",
     marginTop: 2,
   },
+
   scoreMaximum: {
     color: "#8D8797",
     fontSize: 13,
     fontWeight: "600",
   },
+
   feedbackSection: {
     marginTop: 24,
   },
+
   sectionTitle: {
     color: "#161221",
     fontSize: 18,
     fontWeight: "800",
     marginBottom: 10,
   },
+
   feedbackCard: {
     alignItems: "flex-start",
     backgroundColor: "#FFFFFF",
@@ -465,6 +520,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
+
   quoteIcon: {
     alignItems: "center",
     backgroundColor: "#F0ECFF",
@@ -473,12 +529,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 38,
   },
+
   feedbackText: {
     color: "#4D4857",
     flex: 1,
     fontSize: 15,
     lineHeight: 22,
   },
+
   historyButton: {
     alignItems: "center",
     backgroundColor: PURPLE,
@@ -494,12 +552,38 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
+
   historyButtonPressed: {
     opacity: 0.86,
     transform: [{ scale: 0.99 }],
   },
+
   historyButtonText: {
     color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  homeButton: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderColor: PURPLE,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    gap: 9,
+    height: 54,
+    justifyContent: "center",
+    marginTop: 12,
+  },
+
+  homeButtonPressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.99 }],
+  },
+
+  homeButtonText: {
+    color: PURPLE,
     fontSize: 16,
     fontWeight: "700",
   },

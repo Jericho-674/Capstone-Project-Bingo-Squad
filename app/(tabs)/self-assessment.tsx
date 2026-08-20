@@ -30,7 +30,7 @@ export default function SelfAssessment() {
 
   const handleSubmit = () => {
     // SUBMIT SELF ASSESSMENT FUNCTIONALITY GOES HERE
-    router.push("/(tabs)");
+    router.push("/assessment-result");
   };
 
   return (
@@ -47,24 +47,26 @@ export default function SelfAssessment() {
               <Text style={styles.rowLabel}>{competency}</Text>
 
               <View style={styles.starRow}>
-                {Array.from({ length: MAX_STARS }, (_, i) => i + 1).map((star) => {
-                  const filled = star <= ratings[competency];
-                  return (
-                    <Pressable
-                      key={star}
-                      onPress={() => setRating(competency, star)}
-                      hitSlop={6}
-                      accessibilityLabel={`Rate ${competency} ${star} out of ${MAX_STARS}`}
-                    >
-                      <Ionicons
-                        name={filled ? "star" : "star-outline"}
-                        size={22}
-                        color={filled ? "#E08E00" : "#B0B0B0"}
-                        style={styles.star}
-                      />
-                    </Pressable>
-                  );
-                })}
+                {Array.from({ length: MAX_STARS }, (_, i) => i + 1).map(
+                  (star) => {
+                    const filled = star <= ratings[competency];
+                    return (
+                      <Pressable
+                        key={star}
+                        onPress={() => setRating(competency, star)}
+                        hitSlop={6}
+                        accessibilityLabel={`Rate ${competency} ${star} out of ${MAX_STARS}`}
+                      >
+                        <Ionicons
+                          name={filled ? "star" : "star-outline"}
+                          size={22}
+                          color={filled ? "#E08E00" : "#B0B0B0"}
+                          style={styles.star}
+                        />
+                      </Pressable>
+                    );
+                  },
+                )}
               </View>
             </View>
           ))}

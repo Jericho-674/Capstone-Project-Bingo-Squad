@@ -1,67 +1,46 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function HomeScreen() {
+export default function RoleSelection() {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Greeting */}
-      <View style={styles.greeting}>
-        <Text style={styles.title}>Good Morning, (Name)!</Text>
+      <View style={styles.content}>
+        <Text style={styles.greeting}>Hello, Name!</Text>
 
-        <Text style={styles.subtitle}>Keep reflecting. Keep growing!</Text>
-      </View>
+        <Text style={styles.title}>What will you be doing today?</Text>
 
-      {/* Continue Draft */}
-      <View style={styles.draftCard}>
-        <Text style={styles.draftTitle}>Continue Draft</Text>
+        <Text style={styles.subtitle}>
+          Choose how you'd like to use Reflection Diary.
+        </Text>
 
-        <View style={styles.divider} />
-
-        <View style={styles.emptyDraft}>
-          <Text style={styles.emptyDraftText}>
-            You have no reflections drafted.
-          </Text>
-        </View>
-      </View>
-
-      {/* Create Reflection Button */}
-      <Pressable
-        style={styles.createButton}
-        onPress={() => router.push("/new-reflection")}
-      >
-        <Text style={styles.buttonText}>+ Create New Reflection</Text>
-      </Pressable>
-
-      {/* Recent Reflections */}
-      <View style={styles.recentHeader}>
-        <Text style={styles.sectionTitle}>Recent Reflections</Text>
-
-        <Text style={styles.viewAll}>View All</Text>
-      </View>
-
-      <View style={styles.reflectionList}>
         <Pressable
-          accessibilityHint="Opens the self and assessor score comparison"
-          accessibilityRole="button"
-          style={[styles.reflectionCard, styles.completedReflectionCard]}
-          onPress={() => router.push("/assessment-result")}
+          style={[styles.roleButton, styles.reflectorButton]}
+          onPress={() => router.push("/(tabs)/reflector-home")}
         >
-          <View>
-            <Text style={styles.reflectionTitle}>Sprint 2 Reflection</Text>
-            <Text style={styles.reflectionMeta}>Assessed · 14 Aug 2026</Text>
+          <Ionicons name="book-outline" size={28} color="#FFFFFF" />
+
+          <View style={styles.buttonTextContainer}>
+            <Text style={styles.buttonTitle}>Reflector</Text>
+            <Text style={styles.buttonSubtitle}>
+              Reflect, record and track your growth
+            </Text>
           </View>
-          <Text style={styles.arrow}>›</Text>
         </Pressable>
 
-        <Pressable style={styles.reflectionCard}>
-          <Text style={styles.emptyReflectionText}>Nothing here</Text>
-          <Text style={styles.arrow}>›</Text>
-        </Pressable>
+        <Pressable
+          style={[styles.roleButton, styles.assessorButton]}
+          onPress={() => {}}
+        >
+          <Ionicons name="clipboard-outline" size={28} color="#FFFFFF" />
 
-        <Pressable style={styles.reflectionCard}>
-          <Text style={styles.emptyReflectionText}>Nothing here</Text>
-          <Text style={styles.arrow}>›</Text>
+          <View style={styles.buttonTextContainer}>
+            <Text style={styles.buttonTitle}>Assessor</Text>
+            <Text style={styles.buttonSubtitle}>
+              Review and provide feedback
+            </Text>
+          </View>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -72,144 +51,72 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F8F8",
-    paddingHorizontal: 25,
+  },
+
+  content: {
+    flex: 1,
+    width: "90%",
+    alignSelf: "center",
+    justifyContent: "flex-start",
+    paddingTop: 120,
   },
 
   greeting: {
-    width: "100%",
-    alignSelf: "center",
-    marginBottom: 30,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#3F2A88",
+    textAlign: "center",
+    marginBottom: 12,
   },
 
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "bold",
     color: "#000",
-  },
-
-  subtitle: {
-    fontSize: 16,
-    color: "#555",
-    marginTop: 5,
-  },
-
-  draftCard: {
-    width: "100%",
-    alignSelf: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: "#000",
-    height: 180,
-    paddingTop: 15,
-    marginBottom: 20,
-  },
-
-  draftTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    paddingHorizontal: 20,
-    marginBottom: 15,
-  },
-
-  divider: {
-    height: 2,
-    backgroundColor: "#000",
-    width: "100%",
-  },
-
-  createButton: {
-    width: "100%",
-    alignSelf: "center",
-    backgroundColor: "#3F2A88",
-    borderRadius: 15,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 30,
-  },
-
-  buttonText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
-  recentHeader: {
-    width: "100%",
-    alignSelf: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-
-  viewAll: {
-    fontSize: 16,
-    color: "#3F2A88",
-  },
-  reflectionList: {
-    width: "95%",
-    alignSelf: "center",
-    gap: 12,
-    marginTop: 12,
-  },
-
-  reflectionCard: {
-    width: "100%",
-    height: 70,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: "#000",
-    justifyContent: "center",
-    alignItems: "flex-end",
-    paddingHorizontal: 20,
-  },
-
-  completedReflectionCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  reflectionTitle: {
-    color: "#161221",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  reflectionMeta: {
-    color: "#6B6675",
-    fontSize: 13,
-    marginTop: 4,
-  },
-
-  arrow: {
-    fontSize: 32,
-    color: "#3F2A88",
-  },
-
-  emptyDraft: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  emptyDraftText: {
-    color: "#888",
-    fontSize: 15,
     textAlign: "center",
   },
 
-  emptyReflectionText: {
-    color: "#888",
+  subtitle: {
     fontSize: 15,
-    position: "absolute",
-    alignSelf: "center",
+    color: "#555",
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 30,
+  },
+
+  roleButton: {
+    width: "100%",
+    minHeight: 90,
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 22,
+    marginBottom: 16,
+  },
+
+  reflectorButton: {
+    backgroundColor: "#3F2A88",
+  },
+
+  assessorButton: {
+    backgroundColor: "#E08E00",
+  },
+
+  buttonTextContainer: {
+    marginLeft: 16,
+    flex: 1,
+  },
+
+  buttonTitle: {
+    color: "#FFFFFF",
+    fontSize: 19,
+    fontWeight: "700",
+  },
+
+  buttonSubtitle: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    marginTop: 3,
+    opacity: 0.9,
   },
 });

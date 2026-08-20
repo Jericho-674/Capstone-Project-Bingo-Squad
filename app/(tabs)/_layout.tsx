@@ -1,12 +1,17 @@
 import { Tabs, router } from "expo-router";
+
 import React, { useState } from "react";
 
 import { HapticTab } from "@/components/haptic-tab";
+
 import { IconSymbol } from "@/components/ui/icon-symbol";
+
 import { Colors } from "@/constants/theme";
+
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 import { Ionicons } from "@expo/vector-icons";
+
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function TabLayout() {
@@ -18,12 +23,18 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
 
+        // Hide the bottom tab bar
+        tabBarStyle: { display: "none" },
+
         header: () => (
           <View style={styles.header}>
             {/* Back Button */}
             <Pressable onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={28} color="black" />
             </Pressable>
+
+            {/* Header Title */}
+            <Text style={styles.headerTitle}>Reflection Diary</Text>
 
             {/* Hamburger Menu */}
             <View>
@@ -34,47 +45,60 @@ export default function TabLayout() {
               {/* Dropdown Menu */}
               {showMenu && (
                 <View style={styles.dropdown}>
-                  {/* Home */}
+                  {/* Role Selection */}
                   <Pressable
                     style={styles.dropdownOption}
                     onPress={() => {
                       setShowMenu(false);
-                      router.push("/(tabs)");
-                    }}
-                  >
-                    <Ionicons name="home-outline" size={22} color="#000" />
-
-                    <Text style={styles.dropdownText}>Home</Text>
-                  </Pressable>
-
-                  {/* Profile */}
-                  <Pressable
-                    style={styles.dropdownOption}
-                    onPress={() => {
-                      setShowMenu(false);
-                      // PROFILE FUNCTIONALITY GOES HERE
-                    }}
-                  >
-                    <Ionicons name="person-outline" size={22} color="#000" />
-
-                    <Text style={styles.dropdownText}>Profile</Text>
-                  </Pressable>
-
-                  {/* Log Out */}
-                  <Pressable
-                    style={styles.dropdownOption}
-                    onPress={() => {
-                      setShowMenu(false);
-                      // LOG OUT FUNCTIONALITY GOES HERE
+                      router.push("/");
                     }}
                   >
                     <Ionicons
-                      name="log-out-outline"
+                      name="swap-horizontal-outline"
                       size={22}
                       color="#D00000"
                     />
+                    <Text style={styles.roleSelectionText}>Role Selection</Text>
+                  </Pressable>
 
-                    <Text style={styles.logoutText}>Log Out</Text>
+                  {/* Reflector Home */}
+                  <Pressable
+                    style={styles.dropdownOption}
+                    onPress={() => {
+                      setShowMenu(false);
+                      router.push("/(tabs)/reflector-home");
+                    }}
+                  >
+                    <Ionicons name="book-outline" size={22} color="#3F2A88" />
+                    <Text style={styles.dropdownText}>Reflector Home</Text>
+                  </Pressable>
+
+                  {/* Assessor Home */}
+                  <Pressable
+                    style={styles.dropdownOption}
+                    onPress={() => {
+                      setShowMenu(false);
+                      router.push("/");
+                    }}
+                  >
+                    <Ionicons
+                      name="clipboard-outline"
+                      size={22}
+                      color="#E08E00"
+                    />
+                    <Text style={styles.dropdownText}>Assessor Home</Text>
+                  </Pressable>
+
+                  {/* Settings */}
+                  <Pressable
+                    style={styles.dropdownOption}
+                    onPress={() => {
+                      setShowMenu(false);
+                      router.push("/");
+                    }}
+                  >
+                    <Ionicons name="settings-outline" size={22} color="#000" />
+                    <Text style={styles.dropdownText}>Settings</Text>
                   </Pressable>
                 </View>
               )}
@@ -82,9 +106,11 @@ export default function TabLayout() {
           </View>
         ),
 
+        // Keep this as-is
         tabBarButton: HapticTab,
       }}
     >
+      {/* Home */}
       <Tabs.Screen
         name="index"
         options={{
@@ -95,6 +121,7 @@ export default function TabLayout() {
         }}
       />
 
+      {/* New Reflection */}
       <Tabs.Screen
         name="new-reflection"
         options={{
@@ -105,6 +132,7 @@ export default function TabLayout() {
         }}
       />
 
+      {/* Reflection */}
       <Tabs.Screen
         name="reflection"
         options={{
@@ -112,34 +140,12 @@ export default function TabLayout() {
         }}
       />
 
+      {/* Assessment Result */}
       <Tabs.Screen
         name="assessment-result"
         options={{
           href: null,
           tabBarStyle: { display: "none" },
-          header: () => (
-            <View style={styles.header}>
-              <Pressable
-                accessibilityLabel="Go back"
-                accessibilityRole="button"
-                hitSlop={12}
-                onPress={() => router.back()}
-              >
-                <Ionicons name="arrow-back" size={26} color="#161221" />
-              </Pressable>
-
-              <Text style={styles.headerTitle}>Reflection Diary</Text>
-
-              <Pressable
-                accessibilityLabel="Go to home"
-                accessibilityRole="button"
-                hitSlop={12}
-                onPress={() => router.replace("/(tabs)")}
-              >
-                <Ionicons name="home-outline" size={25} color="#3F2A88" />
-              </Pressable>
-            </View>
-          ),
         }}
       />
     </Tabs>
@@ -169,7 +175,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 38,
     right: 0,
-    width: 170,
+    width: 190,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#000",
@@ -194,7 +200,7 @@ const styles = StyleSheet.create({
     color: "#000",
   },
 
-  logoutText: {
+  roleSelectionText: {
     fontSize: 17,
     color: "#D00000",
   },

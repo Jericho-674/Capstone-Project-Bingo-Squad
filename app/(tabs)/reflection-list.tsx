@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+
 import { router } from "expo-router";
+
 import { useMemo, useState } from "react";
+
 import {
   KeyboardAvoidingView,
   Platform,
@@ -18,8 +21,8 @@ interface ReflectionItem {
   id: string;
   title: string;
   status: Status;
-  submittedDate?: string; // shown for Submitted / Assessed
-  progress?: number; // 0-1, shown for Draft
+  submittedDate?: string;
+  progress?: number;
   selected: boolean;
 }
 
@@ -29,24 +32,28 @@ const FILTERS: ("All" | Status)[] = ["All", "Draft", "Submitted", "Assessed"];
 const initialReflections: ReflectionItem[] = [];
 
 export default function ReflectionList() {
-  const [reflections, setReflections] = useState<ReflectionItem[]>(initialReflections);
+  const [reflections, setReflections] =
+    useState<ReflectionItem[]>(initialReflections);
   const [activeFilter, setActiveFilter] = useState<"All" | Status>("All");
   const [searchText, setSearchText] = useState("");
 
   const toggleSelected = (id: string) => {
     setReflections((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, selected: !item.selected } : item
-      )
+        item.id === id ? { ...item, selected: !item.selected } : item,
+      ),
     );
   };
 
   const filteredReflections = useMemo(() => {
     return reflections.filter((item) => {
-      const matchesFilter = activeFilter === "All" || item.status === activeFilter;
+      const matchesFilter =
+        activeFilter === "All" || item.status === activeFilter;
+
       const matchesSearch = item.title
         .toLowerCase()
         .includes(searchText.trim().toLowerCase());
+
       return matchesFilter && matchesSearch;
     });
   }, [reflections, activeFilter, searchText]);
@@ -66,7 +73,8 @@ export default function ReflectionList() {
     // EXPORT PORTFOLIO FUNCTIONALITY GOES HERE
   };
 
-  const isFilteredOrSearched = activeFilter !== "All" || searchText.trim().length > 0;
+  const isFilteredOrSearched =
+    activeFilter !== "All" || searchText.trim().length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -75,10 +83,15 @@ export default function ReflectionList() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
+          {/* Header */}
+          <Text style={styles.title}>Reflection History</Text>
+          <Text style={styles.subtitle}>view all of your reflections.</Text>
+
           {/* Filter tabs */}
           <View style={styles.filterRow}>
             {FILTERS.map((filter) => {
               const active = filter === activeFilter;
+
               return (
                 <Pressable
                   key={filter}
@@ -98,10 +111,6 @@ export default function ReflectionList() {
             })}
           </View>
 
-          {/* Header */}
-          <Text style={styles.title}>Export Portfolio</Text>
-          <Text style={styles.subtitle}>Export your own reflection</Text>
-
           {/* Reflection list */}
           <View style={styles.list}>
             {filteredReflections.map((item) => (
@@ -111,7 +120,11 @@ export default function ReflectionList() {
                 onPress={() => toggleSelected(item.id)}
               >
                 <View style={styles.cardIcon}>
-                  <Ionicons name={iconFor(item.status)} size={20} color="#3F2A88" />
+                  <Ionicons
+                    name={iconFor(item.status)}
+                    size={20}
+                    color="#3F2A88"
+                  />
                 </View>
 
                 <View style={styles.cardInfo}>
@@ -122,7 +135,9 @@ export default function ReflectionList() {
                       <View
                         style={[
                           styles.progressFill,
-                          { width: `${(item.progress ?? 0) * 100}%` },
+                          {
+                            width: `${(item.progress ?? 0) * 100}%`,
+                          },
                         ]}
                       />
                     </View>
@@ -153,6 +168,7 @@ export default function ReflectionList() {
                     ? "No reflections match this filter."
                     : "You haven't created any reflections yet."}
                 </Text>
+
                 {!isFilteredOrSearched && (
                   <Text style={styles.emptyStateSubtext}>
                     Tap "Create New Reflection" below to get started.
@@ -171,7 +187,10 @@ export default function ReflectionList() {
             <Text style={styles.primaryButtonText}>Create New Reflection</Text>
           </Pressable>
 
-          <Pressable style={styles.primaryButton} onPress={handleExportPortfolio}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleExportPortfolio}
+          >
             <Ionicons name="share-outline" size={18} color="#FFF" />
             <Text style={styles.primaryButtonText}>Export portfolio</Text>
           </Pressable>
@@ -182,6 +201,7 @@ export default function ReflectionList() {
       <View style={styles.searchBarRow}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color="#888" />
+
           <TextInput
             style={styles.searchInput}
             placeholder="Search reflections"
@@ -189,6 +209,7 @@ export default function ReflectionList() {
             value={searchText}
             onChangeText={setSearchText}
           />
+
           <Ionicons name="mic-outline" size={18} color="#888" />
         </View>
 
@@ -222,6 +243,19 @@ const styles = StyleSheet.create({
     paddingTop: 15,
   },
 
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#000",
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: "#555",
+    marginTop: 3,
+    marginBottom: 20,
+  },
+
   filterRow: {
     flexDirection: "row",
     backgroundColor: "#EFEBFB",
@@ -249,19 +283,6 @@ const styles = StyleSheet.create({
 
   filterTextActive: {
     color: "#FFFFFF",
-  },
-
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#000",
-  },
-
-  subtitle: {
-    fontSize: 14,
-    color: "#555",
-    marginTop: 3,
-    marginBottom: 20,
   },
 
   list: {

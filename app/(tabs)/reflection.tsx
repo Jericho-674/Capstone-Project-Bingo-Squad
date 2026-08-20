@@ -1,5 +1,14 @@
+import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 export default function Reflection() {
   const [workedOn, setWorkedOn] = useState("");
@@ -8,11 +17,16 @@ export default function Reflection() {
   const [improvements, setImprovements] = useState("");
   const [otherReflection, setOtherReflection] = useState("");
 
+  const handleSaveDraft = () => {
+    // SAVE DRAFT FUNCTIONALITY GOES HERE
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         {/* Header */}
         <Text style={styles.title}>Writing Reflection...</Text>
+
         <Text style={styles.subtitle}>
           Take some time to reflect on your experience.
         </Text>
@@ -122,6 +136,20 @@ export default function Reflection() {
             {otherReflection.length} / 2000 characters
           </Text>
         </View>
+
+        {/* Navigation Buttons */}
+        <View style={styles.buttonContainer}>
+          <Pressable style={styles.saveButton} onPress={handleSaveDraft}>
+            <Text style={styles.saveButtonText}>Save Draft</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.nextButton}
+            onPress={() => router.push("/upload-evidence")}
+          >
+            <Text style={styles.nextButtonText}>Next</Text>
+          </Pressable>
+        </View>
       </View>
     </ScrollView>
   );
@@ -180,5 +208,43 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: "#777",
     fontSize: 13,
+  },
+
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 5,
+  },
+
+  saveButton: {
+    flex: 1,
+    height: 50,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#3F2A88",
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  saveButtonText: {
+    color: "#3F2A88",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  nextButton: {
+    flex: 1,
+    height: 50,
+    backgroundColor: "#3F2A88",
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  nextButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
