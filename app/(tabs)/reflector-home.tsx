@@ -1,7 +1,5 @@
 import { router } from "expo-router";
-
 import { Pressable, StyleSheet, Text, View } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
@@ -16,7 +14,6 @@ export default function HomeScreen() {
       {/* Continue Draft */}
       <View style={styles.draftCard}>
         <Text style={styles.draftTitle}>Continue Draft</Text>
-
         <View style={styles.divider} />
 
         <View style={styles.emptyDraft}>
@@ -44,17 +41,8 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.reflectionList}>
-        <Pressable
-          accessibilityHint="Opens the self and assessor score comparison"
-          accessibilityRole="button"
-          style={[styles.reflectionCard, styles.completedReflectionCard]}
-          onPress={() => router.push("/assessment-result")}
-        >
-          <View>
-            <Text style={styles.reflectionTitle}>Sprint 2 Reflection</Text>
-            <Text style={styles.reflectionMeta}>Assessed · 14 Aug 2026</Text>
-          </View>
-
+        <Pressable style={styles.reflectionCard}>
+          <Text style={styles.emptyReflectionText}>Nothing here</Text>
           <Text style={styles.arrow}>›</Text>
         </Pressable>
 
@@ -174,24 +162,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "flex-end",
     paddingHorizontal: 20,
-  },
-
-  completedReflectionCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  reflectionTitle: {
-    color: "#161221",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  reflectionMeta: {
-    color: "#6B6675",
-    fontSize: 13,
-    marginTop: 4,
   },
 
   arrow: {
