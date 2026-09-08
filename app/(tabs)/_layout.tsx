@@ -16,6 +16,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+
   const [showMenu, setShowMenu] = useState(false);
 
   return (
@@ -28,17 +29,16 @@ export default function TabLayout() {
 
         header: () => (
           <View style={styles.header}>
-            {/* Back Button */}
-            <Pressable onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={28} color="black" />
-            </Pressable>
-
             {/* Header Title */}
             <Text style={styles.headerTitle}>Reflection Diary</Text>
 
             {/* Hamburger Menu */}
             <View>
-              <Pressable onPress={() => setShowMenu(!showMenu)}>
+              <Pressable
+                onPress={() => setShowMenu(!showMenu)}
+                accessibilityRole="button"
+                accessibilityLabel="Open menu"
+              >
                 <Ionicons name="menu" size={28} color="black" />
               </Pressable>
 
@@ -69,36 +69,20 @@ export default function TabLayout() {
                       router.push("/(tabs)/reflector-home");
                     }}
                   >
-                    <Ionicons name="book-outline" size={22} color="#3F2A88" />
+                    <Ionicons name="book-outline" size={22} color="#2E7D32" />
                     <Text style={styles.dropdownText}>Reflector Home</Text>
                   </Pressable>
 
-                  {/* Assessor Home */}
+                  {/* Reflection History */}
                   <Pressable
                     style={styles.dropdownOption}
                     onPress={() => {
                       setShowMenu(false);
-                      router.push("/");
+                      router.push("/reflection-list");
                     }}
                   >
-                    <Ionicons
-                      name="clipboard-outline"
-                      size={22}
-                      color="#E08E00"
-                    />
-                    <Text style={styles.dropdownText}>Assessor Home</Text>
-                  </Pressable>
-
-                  {/* Settings */}
-                  <Pressable
-                    style={styles.dropdownOption}
-                    onPress={() => {
-                      setShowMenu(false);
-                      router.push("/");
-                    }}
-                  >
-                    <Ionicons name="settings-outline" size={22} color="#000" />
-                    <Text style={styles.dropdownText}>Settings</Text>
+                    <Ionicons name="time-outline" size={22} color="#3F2A88" />
+                    <Text style={styles.dropdownText}>Reflection History</Text>
                   </Pressable>
                 </View>
               )}
@@ -157,15 +141,21 @@ const styles = StyleSheet.create({
     height: 80,
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 30,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5E5",
+    position: "relative",
   },
 
   headerTitle: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 45,
+    textAlign: "center",
     color: "#161221",
     fontSize: 18,
     fontWeight: "700",
@@ -175,7 +165,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 38,
     right: 0,
-    width: 190,
+    width: 215,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#000",
@@ -188,7 +178,7 @@ const styles = StyleSheet.create({
   dropdownOption: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     paddingVertical: 16,
     paddingHorizontal: 18,
     borderBottomWidth: 1,

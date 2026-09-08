@@ -1,13 +1,42 @@
 import { Ionicons } from "@expo/vector-icons";
+
 import { router } from "expo-router";
+
+import { useEffect, useState } from "react";
+
 import { Pressable, StyleSheet, Text, View } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function RoleSelection() {
+  const [greeting, setGreeting] = useState("Good Evening!");
+
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+
+      if (hour < 12) {
+        setGreeting("Good Morning!");
+      } else if (hour < 17) {
+        setGreeting("Good Afternoon!");
+      } else {
+        setGreeting("Good Evening!");
+      }
+    };
+
+    // Set greeting when screen loads
+    updateGreeting();
+
+    // Check every minute in case the greeting needs to change
+    const interval = setInterval(updateGreeting, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.greeting}>Hello, Name!</Text>
+        <Text style={styles.greeting}>{greeting}</Text>
 
         <Text style={styles.title}>What will you be doing today?</Text>
 
@@ -23,6 +52,7 @@ export default function RoleSelection() {
 
           <View style={styles.buttonTextContainer}>
             <Text style={styles.buttonTitle}>Reflector</Text>
+
             <Text style={styles.buttonSubtitle}>
               Reflect, record and track your growth
             </Text>
@@ -37,6 +67,7 @@ export default function RoleSelection() {
 
           <View style={styles.buttonTextContainer}>
             <Text style={styles.buttonTitle}>Assessor</Text>
+
             <Text style={styles.buttonSubtitle}>
               Review and provide feedback
             </Text>
