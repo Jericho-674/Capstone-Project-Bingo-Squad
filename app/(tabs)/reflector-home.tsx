@@ -1,15 +1,41 @@
 import { router } from "expo-router";
 
+import { useEffect, useState } from "react";
+
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
+  const [greeting, setGreeting] = useState("Good Evening!");
+
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+
+      if (hour < 12) {
+        setGreeting("Good Morning!");
+      } else if (hour < 17) {
+        setGreeting("Good Afternoon!");
+      } else {
+        setGreeting("Good Evening!");
+      }
+    };
+
+    // Set greeting when screen loads
+    updateGreeting();
+
+    // Check every minute in case the greeting needs to change
+    const interval = setInterval(updateGreeting, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Greeting */}
       <View style={styles.greeting}>
-        <Text style={styles.title}>Good Morning, (Name)!</Text>
+        <Text style={styles.title}>{greeting}</Text>
         <Text style={styles.subtitle}>Keep reflecting. Keep growing!</Text>
       </View>
 
@@ -44,17 +70,8 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.reflectionList}>
-        <Pressable
-          accessibilityHint="Opens the self and assessor score comparison"
-          accessibilityRole="button"
-          style={[styles.reflectionCard, styles.completedReflectionCard]}
-          onPress={() => router.push("/assessment-result")}
-        >
-          <View>
-            <Text style={styles.reflectionTitle}>Sprint 2 Reflection</Text>
-            <Text style={styles.reflectionMeta}>Assessed · 14 Aug 2026</Text>
-          </View>
-
+        <Pressable style={styles.reflectionCard}>
+          <Text style={styles.emptyReflectionText}>Nothing here</Text>
           <Text style={styles.arrow}>›</Text>
         </Pressable>
 
@@ -174,24 +191,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "flex-end",
     paddingHorizontal: 20,
-  },
-
-  completedReflectionCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  reflectionTitle: {
-    color: "#161221",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  reflectionMeta: {
-    color: "#6B6675",
-    fontSize: 13,
-    marginTop: 4,
   },
 
   arrow: {
