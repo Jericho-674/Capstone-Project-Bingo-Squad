@@ -3,6 +3,10 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { API_BASE_URL } from "../../services/api";
+import {
+  rankReflections,
+  type SearchableReflection,
+} from "../../services/reflectionSearch";
 
 import {
   KeyboardAvoidingView,
@@ -20,18 +24,38 @@ type Status =
   | "Submitted"
   | "Assessed";
 
-interface ReflectionItem {
+type ApiReflection = {
+  id: number | string;
+  title?: string | null;
+  status?: string | null;
+  project_group?: string | null;
+  worked_on?: string | null;
+  challenges?: string | null;
+  learned?: string | null;
+  improvement?: string | null;
+  other_reflection?: string | null;
+  updated_at?: string | null;
+};
+
+interface ReflectionItem
+  extends SearchableReflection {
   id: string;
   title: string;
   status: Status;
   submittedDate?: string;
   progress?: number;
+  projectGroup?: string | null;
+  workedOn?: string | null;
+  challenges?: string | null;
+  learned?: string | null;
+  improvement?: string | null;
+  otherReflection?: string | null;
+  updatedAt?: string | null;
 }
 
-const FILTERS: (
-  | "All"
-  | Status
-)[] = [
+const FILTERS: Array<
+  "All" | Status
+> = [
   "All",
   "Draft",
   "Submitted",
@@ -42,16 +66,12 @@ export default function ReflectionList() {
   const [
     reflections,
     setReflections,
-  ] = useState<
-    ReflectionItem[]
-  >([]);
+  ] = useState<ReflectionItem[]>([]);
 
   const [
     activeFilter,
     setActiveFilter,
-  ] = useState<
-    "All" | Status
-  >("All");
+  ] = useState<"All" | Status>("All");
 
   const [
     searchText,
@@ -67,83 +87,109 @@ export default function ReflectionList() {
   // LOAD REFLECTIONS
   // ====================================================
 
-  const loadReflections =
-    async () => {
-      try {
-        setIsLoading(true);
+  const loadReflections = async () => {
+    try {
+      setIsLoading(true);
 
-        console.log(
-          "Loading reflections from backend..."
+      console.log(
+        "Loading reflections from backend..."
+      );
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/reflections`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to load reflections: ${response.status}`
         );
-
-        const response =
-          await fetch(
-            `${API_BASE_URL}/api/reflections`
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to load reflections: ${response.status}`
-          );
-        }
-
-        const data =
-          await response.json();
-
-        console.log(
-          "Reflections received:",
-          data
-        );
-
-        const formattedReflections:
-          ReflectionItem[] =
-          data.map(
-            (item: any) => ({
-              id:
-                String(
-                  item.id
-                ),
-
-              title:
-                item.title,
-
-              status:
-                item.status ===
-                "submitted"
-                  ? "Submitted"
-                  : item.status ===
-                      "assessed"
-                    ? "Assessed"
-                    : "Draft",
-
-              submittedDate:
-                item.status !==
-                "draft"
-                  ? new Date(
-                      item.updated_at
-                    ).toLocaleDateString()
-                  : undefined,
-
-              progress:
-                item.status ===
-                "draft"
-                  ? 0.5
-                  : undefined,
-            })
-          );
-
-        setReflections(
-          formattedReflections
-        );
-      } catch (error) {
-        console.error(
-          "Error loading reflections:",
-          error
-        );
-      } finally {
-        setIsLoading(false);
       }
-    };
+
+      const data =
+        (await response.json()) as ApiReflection[];
+
+      console.log(
+        "Reflections received:",
+        data
+      );
+
+      const formattedReflections:
+        ReflectionItem[] = data.map(
+        (item) => {
+          const normalisedStatus =
+            String(
+              item.status ?? ""
+            ).toLowerCase();
+
+          const status: Status =
+            normalisedStatus ===
+            "submitted"
+              ? "Submitted"
+              : normalisedStatus ===
+                  "assessed"
+                ? "Assessed"
+                : "Draft";
+
+          return {
+            id: String(item.id),
+
+            title:
+              item.title?.trim() ||
+              "Untitled Reflection",
+
+            status,
+
+            submittedDate:
+              normalisedStatus !==
+                "draft" &&
+              item.updated_at
+                ? new Date(
+                    item.updated_at
+                  ).toLocaleDateString()
+                : undefined,
+
+            progress:
+              normalisedStatus ===
+              "draft"
+                ? 0.5
+                : undefined,
+
+            projectGroup:
+              item.project_group,
+
+            workedOn:
+              item.worked_on,
+
+            challenges:
+              item.challenges,
+
+            learned:
+              item.learned,
+
+            improvement:
+              item.improvement,
+
+            otherReflection:
+              item.other_reflection,
+
+            updatedAt:
+              item.updated_at,
+          };
+        }
+      );
+
+      setReflections(
+        formattedReflections
+      );
+    } catch (error) {
+      console.error(
+        "Error loading reflections:",
+        error
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadReflections();
@@ -153,72 +199,58 @@ export default function ReflectionList() {
   // OPEN EXISTING REFLECTION
   // ====================================================
 
-  const handleOpenReflection =
-    (
-      item: ReflectionItem
-    ) => {
-      console.log(
-        "Opening reflection:",
-        item.id,
-        item.status
-      );
+  const handleOpenReflection = (
+    item: ReflectionItem
+  ) => {
+    console.log(
+      "Opening reflection:",
+      item.id,
+      item.status
+    );
 
-      if (
-        item.status ===
-        "Draft"
-      ) {
-        router.push({
-          pathname:
-            "/(tabs)/reflection",
-
-          params: {
-            reflectionId:
-              item.id,
-          },
-        });
-
-        return;
-      }
-
+    if (item.status === "Draft") {
       router.push({
         pathname:
-          "/(tabs)/assessment-result",
+          "/(tabs)/reflection",
 
         params: {
           reflectionId:
             item.id,
         },
       });
-    };
+
+      return;
+    }
+
+    router.push({
+      pathname:
+        "/(tabs)/assessment-result",
+
+      params: {
+        reflectionId:
+          item.id,
+      },
+    });
+  };
 
   // ====================================================
-  // FILTER + SEARCH
+  // FILTER + LOCAL SEMANTIC SEARCH
   // ====================================================
 
   const filteredReflections =
     useMemo(() => {
-      return reflections.filter(
-        (item) => {
-          const matchesFilter =
+      const statusFiltered =
+        reflections.filter(
+          (item) =>
             activeFilter ===
               "All" ||
             item.status ===
-              activeFilter;
+              activeFilter
+        );
 
-          const matchesSearch =
-            item.title
-              .toLowerCase()
-              .includes(
-                searchText
-                  .trim()
-                  .toLowerCase()
-              );
-
-          return (
-            matchesFilter &&
-            matchesSearch
-          );
-        }
+      return rankReflections(
+        statusFiltered,
+        searchText
       );
     }, [
       reflections,
@@ -274,14 +306,15 @@ export default function ReflectionList() {
         "Export portfolio pressed"
       );
 
-      // EXPORT FUNCTIONALITY
-      // CAN BE ADDED LATER
+      // Existing export functionality can be added here.
     };
+
+  const hasSearch =
+    searchText.trim().length > 0;
 
   const isFilteredOrSearched =
     activeFilter !== "All" ||
-    searchText.trim()
-      .length > 0;
+    hasSearch;
 
   // ====================================================
   // SCREEN
@@ -289,12 +322,9 @@ export default function ReflectionList() {
 
   return (
     <KeyboardAvoidingView
-      style={
-        styles.container
-      }
+      style={styles.container}
       behavior={
-        Platform.OS ===
-        "ios"
+        Platform.OS === "ios"
           ? "padding"
           : "height"
       }
@@ -303,36 +333,24 @@ export default function ReflectionList() {
         contentContainerStyle={
           styles.scrollContent
         }
+        keyboardShouldPersistTaps="handled"
       >
-        <View
-          style={
-            styles.content
-          }
-        >
+        <View style={styles.content}>
           {/* HEADER */}
 
-          <Text
-            style={
-              styles.title
-            }
-          >
+          <Text style={styles.title}>
             Reflection History
           </Text>
 
-          <Text
-            style={
-              styles.subtitle
-            }
-          >
-            View all of your reflections.
+          <Text style={styles.subtitle}>
+            View and search all of your
+            reflections.
           </Text>
 
           {/* FILTER TABS */}
 
           <View
-            style={
-              styles.filterRow
-            }
+            style={styles.filterRow}
           >
             {FILTERS.map(
               (filter) => {
@@ -342,9 +360,7 @@ export default function ReflectionList() {
 
                 return (
                   <Pressable
-                    key={
-                      filter
-                    }
+                    key={filter}
                     style={[
                       styles.filterPill,
 
@@ -373,13 +389,39 @@ export default function ReflectionList() {
             )}
           </View>
 
+          {/* SEARCH SUMMARY */}
+
+          {hasSearch && (
+            <View
+              style={
+                styles.searchSummary
+              }
+            >
+              <Ionicons
+                name="sparkles-outline"
+                size={16}
+                color="#3F2A88"
+              />
+
+              <Text
+                style={
+                  styles.searchSummaryText
+                }
+              >
+                {filteredReflections.length}{" "}
+                relevant{" "}
+                {filteredReflections.length ===
+                1
+                  ? "reflection"
+                  : "reflections"}{" "}
+                found
+              </Text>
+            </View>
+          )}
+
           {/* REFLECTION LIST */}
 
-          <View
-            style={
-              styles.list
-            }
-          >
+          <View style={styles.list}>
             {isLoading ? (
               <View
                 style={
@@ -399,9 +441,7 @@ export default function ReflectionList() {
                 {filteredReflections.map(
                   (item) => (
                     <Pressable
-                      key={
-                        item.id
-                      }
+                      key={item.id}
                       style={({
                         pressed,
                       }) => [
@@ -422,14 +462,10 @@ export default function ReflectionList() {
                         }
                       >
                         <Ionicons
-                          name={
-                            iconFor(
-                              item.status
-                            )
-                          }
-                          size={
-                            20
-                          }
+                          name={iconFor(
+                            item.status
+                          )}
+                          size={20}
                           color="#3F2A88"
                         />
                       </View>
@@ -443,13 +479,9 @@ export default function ReflectionList() {
                           style={
                             styles.cardTitle
                           }
-                          numberOfLines={
-                            1
-                          }
+                          numberOfLines={1}
                         >
-                          {
-                            item.title
-                          }
+                          {item.title}
                         </Text>
 
                         {item.status ===
@@ -504,9 +536,7 @@ export default function ReflectionList() {
                                 },
                               ]}
                             >
-                              {
-                                item.status
-                              }
+                              {item.status}
                             </Text>
 
                             <Text
@@ -515,9 +545,8 @@ export default function ReflectionList() {
                               }
                             >
                               Updated{" "}
-                              {
-                                item.submittedDate
-                              }
+                              {item.submittedDate ??
+                                "date unavailable"}
                             </Text>
                           </>
                         )}
@@ -525,9 +554,7 @@ export default function ReflectionList() {
 
                       <Ionicons
                         name="chevron-forward"
-                        size={
-                          20
-                        }
+                        size={20}
                         color="#888"
                       />
                     </Pressable>
@@ -546,10 +573,25 @@ export default function ReflectionList() {
                         styles.emptyStateText
                       }
                     >
-                      {isFilteredOrSearched
-                        ? "No reflections match this filter."
-                        : "You haven't created any reflections yet."}
+                      {hasSearch
+                        ? "No reflections match this search."
+                        : activeFilter !==
+                            "All"
+                          ? "No reflections match this filter."
+                          : "You haven't created any reflections yet."}
                     </Text>
+
+                    {hasSearch && (
+                      <Text
+                        style={
+                          styles.emptyStateSubtext
+                        }
+                      >
+                        Try a different topic,
+                        challenge or related
+                        word.
+                      </Text>
+                    )}
 
                     {!isFilteredOrSearched && (
                       <Text
@@ -557,7 +599,9 @@ export default function ReflectionList() {
                           styles.emptyStateSubtext
                         }
                       >
-                        Tap "Create New Reflection" below to get started.
+                        Tap &quot;Create New
+                        Reflection&quot; below
+                        to get started.
                       </Text>
                     )}
                   </View>
@@ -569,9 +613,7 @@ export default function ReflectionList() {
           {/* CREATE NEW REFLECTION */}
 
           <Pressable
-            style={({
-              pressed,
-            }) => [
+            style={({ pressed }) => [
               styles.primaryButton,
 
               pressed &&
@@ -585,9 +627,7 @@ export default function ReflectionList() {
           >
             <Ionicons
               name="add"
-              size={
-                18
-              }
+              size={18}
               color="#FFF"
             />
 
@@ -603,9 +643,7 @@ export default function ReflectionList() {
           {/* EXPORT */}
 
           <Pressable
-            style={({
-              pressed,
-            }) => [
+            style={({ pressed }) => [
               styles.secondaryButton,
 
               pressed &&
@@ -617,9 +655,7 @@ export default function ReflectionList() {
           >
             <Ionicons
               name="share-outline"
-              size={
-                18
-              }
+              size={18}
               color="#3F2A88"
             />
 
@@ -634,67 +670,45 @@ export default function ReflectionList() {
         </View>
       </ScrollView>
 
-      {/* SEARCH BAR */}
+      {/* LOCAL SEMANTIC SEARCH BAR */}
 
-      <View
-        style={
-          styles.searchBarRow
-        }
-      >
-        <View
-          style={
-            styles.searchBar
-          }
-        >
+      <View style={styles.searchBarRow}>
+        <View style={styles.searchBar}>
           <Ionicons
             name="search"
-            size={
-              18
-            }
-            color="#888"
+            size={18}
+            color="#666"
           />
 
           <TextInput
-            style={
-              styles.searchInput
-            }
-            placeholder="Search reflections"
-            placeholderTextColor="#999"
-            value={
-              searchText
-            }
-            onChangeText={
-              setSearchText
-            }
+            style={styles.searchInput}
+            placeholder="Search by topic, challenge or learning"
+            placeholderTextColor="#777"
+            value={searchText}
+            onChangeText={setSearchText}
+            returnKeyType="search"
+            clearButtonMode="never"
+            accessibilityLabel="Search reflections by meaning"
           />
 
           <Ionicons
-            name="mic-outline"
-            size={
-              18
-            }
-            color="#888"
+            name="sparkles-outline"
+            size={18}
+            color="#3F2A88"
           />
         </View>
 
-        {searchText.length >
-          0 && (
+        {searchText.length > 0 && (
           <Pressable
-            style={
-              styles.searchClear
-            }
+            style={styles.searchClear}
             onPress={() =>
-              setSearchText(
-                ""
-              )
+              setSearchText("")
             }
             accessibilityLabel="Clear search"
           >
             <Ionicons
               name="close"
-              size={
-                18
-              }
+              size={18}
               color="#000"
             />
           </Pressable>
@@ -708,290 +722,259 @@ export default function ReflectionList() {
 // STYLES
 // ======================================================
 
-const styles =
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor:
-        "#F8F8F8",
-    },
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F8F8",
+  },
 
-    scrollContent: {
-      paddingBottom: 20,
-    },
+  scrollContent: {
+    paddingBottom: 20,
+  },
 
-    content: {
-      width: "90%",
-      alignSelf:
-        "center",
-      paddingTop: 15,
-    },
+  content: {
+    width: "90%",
+    alignSelf: "center",
+    paddingTop: 15,
+  },
 
-    title: {
-      fontSize: 22,
-      fontWeight:
-        "bold",
-      color: "#000",
-    },
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#000",
+  },
 
-    subtitle: {
-      fontSize: 14,
-      color: "#555",
-      marginTop: 3,
-      marginBottom: 20,
-    },
+  subtitle: {
+    fontSize: 14,
+    color: "#555",
+    marginTop: 3,
+    marginBottom: 20,
+  },
 
-    filterRow: {
-      flexDirection:
-        "row",
-      backgroundColor:
-        "#EFEBFB",
-      borderRadius: 12,
-      padding: 4,
-      marginBottom: 20,
-    },
+  filterRow: {
+    flexDirection: "row",
+    backgroundColor: "#EFEBFB",
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
 
-    filterPill: {
-      flex: 1,
-      paddingVertical: 8,
-      borderRadius: 10,
-      alignItems:
-        "center",
-    },
+  filterPill: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: "center",
+  },
 
-    filterPillActive: {
-      backgroundColor:
-        "#3F2A88",
-    },
+  filterPillActive: {
+    backgroundColor: "#3F2A88",
+  },
 
-    filterText: {
-      fontSize: 13,
-      fontWeight:
-        "600",
-      color: "#3F2A88",
-    },
+  filterText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3F2A88",
+  },
 
-    filterTextActive: {
-      color: "#FFFFFF",
-    },
+  filterTextActive: {
+    color: "#FFFFFF",
+  },
 
-    list: {
-      gap: 12,
-      marginBottom: 25,
-    },
+  searchSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EFEBFB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 14,
+  },
 
-    card: {
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
-      backgroundColor:
-        "#FFFFFF",
-      borderWidth: 1,
-      borderColor:
-        "#E5E5E5",
-      borderRadius: 14,
-      padding: 14,
-      gap: 12,
-    },
+  searchSummaryText: {
+    flex: 1,
+    color: "#3F2A88",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 
-    cardPressed: {
-      opacity: 0.78,
+  list: {
+    gap: 12,
+    marginBottom: 25,
+  },
 
-      transform: [
-        {
-          scale: 0.99,
-        },
-      ],
-    },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+  },
 
-    cardIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor:
-        "#EFEBFB",
-      alignItems:
-        "center",
-      justifyContent:
-        "center",
-    },
+  cardPressed: {
+    opacity: 0.78,
+    transform: [
+      {
+        scale: 0.99,
+      },
+    ],
+  },
 
-    cardInfo: {
-      flex: 1,
-    },
+  cardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EFEBFB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-    cardTitle: {
-      fontSize: 15,
-      fontWeight:
-        "700",
-      color: "#000",
-      marginBottom: 4,
-    },
+  cardInfo: {
+    flex: 1,
+  },
 
-    statusText: {
-      fontSize: 12,
-      fontWeight:
-        "700",
-      marginBottom: 5,
-    },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#000",
+    marginBottom: 4,
+  },
 
-    cardMeta: {
-      fontSize: 12,
-      color: "#888",
-    },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 5,
+  },
 
-    progressTrack: {
-      height: 5,
-      borderRadius: 3,
-      backgroundColor:
-        "#E5E5E5",
-      overflow:
-        "hidden",
-      width: "90%",
-    },
+  cardMeta: {
+    fontSize: 12,
+    color: "#888",
+  },
 
-    progressFill: {
-      height: "100%",
-      backgroundColor:
-        "#3F2A88",
-      borderRadius: 3,
-    },
+  progressTrack: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#E5E5E5",
+    overflow: "hidden",
+    width: "90%",
+  },
 
-    emptyState: {
-      backgroundColor:
-        "#FFFFFF",
-      borderWidth: 1,
-      borderColor:
-        "#E5E5E5",
-      borderRadius: 12,
-      paddingVertical: 24,
-      paddingHorizontal: 20,
-      alignItems:
-        "center",
-    },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#3F2A88",
+    borderRadius: 3,
+  },
 
-    emptyStateText: {
-      color: "#555",
-      fontSize: 14,
-      fontWeight:
-        "600",
-      textAlign:
-        "center",
-    },
+  emptyState: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    borderRadius: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: "center",
+  },
 
-    emptyStateSubtext: {
-      color: "#888",
-      fontSize: 13,
-      textAlign:
-        "center",
-      marginTop: 6,
-    },
+  emptyStateText: {
+    color: "#555",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 
-    primaryButton: {
-      width: "100%",
-      height: 50,
-      backgroundColor:
-        "#3F2A88",
-      borderRadius: 15,
-      flexDirection:
-        "row",
-      justifyContent:
-        "center",
-      alignItems:
-        "center",
-      gap: 8,
-      marginBottom: 12,
-    },
+  emptyStateSubtext: {
+    color: "#888",
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 6,
+  },
 
-    secondaryButton: {
-      width: "100%",
-      height: 50,
-      backgroundColor:
-        "#FFFFFF",
-      borderWidth: 1.5,
-      borderColor:
-        "#3F2A88",
-      borderRadius: 15,
-      flexDirection:
-        "row",
-      justifyContent:
-        "center",
-      alignItems:
-        "center",
-      gap: 8,
-      marginBottom: 12,
-    },
+  primaryButton: {
+    width: "100%",
+    height: 50,
+    backgroundColor: "#3F2A88",
+    borderRadius: 15,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
 
-    primaryButtonPressed: {
-      opacity: 0.8,
+  secondaryButton: {
+    width: "100%",
+    height: 50,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#3F2A88",
+    borderRadius: 15,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
 
-      transform: [
-        {
-          scale: 0.99,
-        },
-      ],
-    },
+  primaryButtonPressed: {
+    opacity: 0.8,
+    transform: [
+      {
+        scale: 0.99,
+      },
+    ],
+  },
 
-    primaryButtonText: {
-      color: "#FFFFFF",
-      fontSize: 16,
-      fontWeight:
-        "600",
-    },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 
-    secondaryButtonText: {
-      color: "#3F2A88",
-      fontSize: 16,
-      fontWeight:
-        "600",
-    },
+  secondaryButtonText: {
+    color: "#3F2A88",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 
-    searchBarRow: {
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
-      gap: 10,
-      paddingHorizontal:
-        "5%",
-      paddingVertical: 12,
-      borderTopWidth: 1,
-      borderTopColor:
-        "#E5E5E5",
-      backgroundColor:
-        "#F8F8F8",
-    },
+  searchBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: "5%",
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5E5",
+    backgroundColor: "#F8F8F8",
+  },
 
-    searchBar: {
-      flex: 1,
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
-      gap: 8,
-      backgroundColor:
-        "#EDEDED",
-      borderRadius: 25,
-      paddingHorizontal: 15,
-      height: 44,
-    },
+  searchBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#EDEDED",
+    borderWidth: 1,
+    borderColor: "#DDD8EE",
+    borderRadius: 25,
+    paddingHorizontal: 15,
+    height: 46,
+  },
 
-    searchInput: {
-      flex: 1,
-      fontSize: 14,
-      color: "#000",
-    },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#000",
+  },
 
-    searchClear: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor:
-        "#EDEDED",
-      alignItems:
-        "center",
-      justifyContent:
-        "center",
-    },
-  });
+  searchClear: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#EDEDED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
