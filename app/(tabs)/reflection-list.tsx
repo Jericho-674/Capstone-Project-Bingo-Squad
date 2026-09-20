@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+﻿import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import { router } from "expo-router";
 import * as Sharing from "expo-sharing";
@@ -56,11 +56,6 @@ interface ReflectionItem
   updatedAt?: string | null;
 }
 
-<<<<<<< HEAD
-const FILTERS: Array<
-  "All" | Status
-> = [
-=======
 type ReflectionRecord = {
   challenges?: string | null;
   id: number | string;
@@ -103,7 +98,6 @@ const FILTERS: (
   | "All"
   | Status
 )[] = [
->>>>>>> origin/main
   "All",
   "Draft",
   "Submitted",
@@ -607,9 +601,6 @@ export default function ReflectionList() {
       try {
         setIsExporting(true);
 
-<<<<<<< HEAD
-      // Existing export functionality can be added here.
-=======
         const reflectionResponse =
           await fetch(
             `${API_BASE_URL}/api/reflections`
@@ -757,7 +748,6 @@ export default function ReflectionList() {
       } finally {
         setIsExporting(false);
       }
->>>>>>> origin/main
     };
 
   const hasSearch =
@@ -1094,16 +1084,12 @@ export default function ReflectionList() {
           {/* EXPORT */}
 
           <Pressable
-<<<<<<< HEAD
-            style={({ pressed }) => [
-=======
             disabled={
               isExporting
             }
             style={({
               pressed,
             }) => [
->>>>>>> origin/main
               styles.secondaryButton,
 
               isExporting &&
@@ -1393,13 +1379,6 @@ const styles = StyleSheet.create({
     ],
   },
 
-<<<<<<< HEAD
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-=======
     disabledButton: {
       opacity: 0.6,
     },
@@ -1410,7 +1389,6 @@ const styles = StyleSheet.create({
       fontWeight:
         "600",
     },
->>>>>>> origin/main
 
   secondaryButtonText: {
     color: "#3F2A88",
@@ -1448,7 +1426,6 @@ const styles = StyleSheet.create({
     color: "#000",
   },
 
-<<<<<<< HEAD
   searchClear: {
     width: 34,
     height: 34,
@@ -1458,17 +1435,3 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-=======
-    searchClear: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor:
-        "#EDEDED",
-      alignItems:
-        "center",
-      justifyContent:
-        "center",
-    },
-  });
->>>>>>> origin/main
