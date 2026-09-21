@@ -21,6 +21,10 @@ import {
 } from "react-native";
 
 export default function Reflection() {
+  const saving = useRef(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  
   const params = useLocalSearchParams();
 
   const reflectionId = Array.isArray(params.reflectionId)
@@ -40,54 +44,79 @@ export default function Reflection() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load existing reflection draft
-  useEffect(() => {
-    const loadReflection = async () => {
-      if (!reflectionId) {
-        setIsLoading(false);
-        return;
-      }
+// Load existing reflection draft whenever this page opens
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
 
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/reflections/${reflectionId}`
-        );
+      setIsLoading(true);
+      setLoaded(false);
+      setErrorMessage("");
 
-        if (!response.ok) {
-          throw new Error("Failed to load reflection");
+      const loadReflection = async () => {
+        if (!reflectionId) {
+          setErrorMessage("Reflection ID is missing.");
+          setIsLoading(false);
+          return;
         }
 
-        const data = await response.json();
-
-        setTitle(data.title ?? "");
-        setProjectGroup(data.project_group ?? "");
-
-        if (data.reflection_date) {
-          setReflectionDate(
-            String(data.reflection_date).slice(0, 10)
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/reflections/${reflectionId}`
           );
+
+          if (!response.ok) {
+            throw new Error("Failed to load reflection");
+          }
+
+          const data = await response.json();
+
+          if (!active) return;
+
+          setTitle(data.title ?? "");
+          setProjectGroup(data.project_group ?? "");
+
+          setReflectionDate(
+            data.reflection_date
+              ? String(data.reflection_date).slice(0, 10)
+              : ""
+          );
+
+          setWorkedOn(data.worked_on ?? "");
+          setChallenges(data.challenges ?? "");
+          setLearning(data.learned ?? "");
+          setImprovements(data.improvement ?? "");
+          setOtherReflection(data.other_reflection ?? "");
+
+          setLoaded(true);
+        } catch (error) {
+          if (!active) return;
+
+          console.error("Error loading reflection:", error);
+
+          setErrorMessage(
+            "Could not load the reflection. Please reopen it to try again."
+          );
+
+          Alert.alert(
+            "Error",
+            "Could not load the reflection."
+          );
+        } finally {
+          if (active) {
+            setIsLoading(false);
+          }
         }
+      };
 
-        setWorkedOn(data.worked_on ?? "");
-        setChallenges(data.challenges ?? "");
-        setLearning(data.learned ?? "");
-        setImprovements(data.improvement ?? "");
-        setOtherReflection(data.other_reflection ?? "");
-      } catch (error) {
-        console.error("Error loading reflection:", error);
+      void loadReflection();
 
-        Alert.alert(
-          "Error",
-          "Could not load the reflection."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadReflection();
-  }, [reflectionId]);
-
+      return () => {
+        active = false;
+      };
+    }, [reflectionId])
+  );
+  
   // Save reflection as draft
   const saveDraft = async () => {
     if (!reflectionId) {
