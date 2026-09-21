@@ -1,7 +1,10 @@
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+} from "expo-router";
 
-import { API_BASE_URL } from "../../services/api";
+import { useCallback, useRef, useState } from "react";
 
 import {
   Alert,
@@ -12,6 +15,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { ReflectionExitActions } from "../../components/reflection-exit-actions";
+import { API_BASE_URL } from "../../services/api";
 
 export default function Reflection() {
   const params = useLocalSearchParams();
@@ -32,58 +38,95 @@ export default function Reflection() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Load existing reflection draft
-  useEffect(() => {
-    const loadReflection = async () => {
-      if (!reflectionId) {
-        setIsLoading(false);
-        return;
-      }
+  const saving = useRef(false);
 
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/reflections/${reflectionId}`
-        );
+  // Reload saved content whenever this page becomes active.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
 
-        if (!response.ok) {
-          throw new Error("Failed to load reflection");
+      setIsLoading(true);
+      setLoaded(false);
+      setErrorMessage("");
+
+      const loadReflection = async () => {
+        if (!reflectionId) {
+          setErrorMessage("Reflection ID is missing.");
+          setIsLoading(false);
+          return;
         }
 
-        const data = await response.json();
-
-        setTitle(data.title ?? "");
-        setProjectGroup(data.project_group ?? "");
-
-        if (data.reflection_date) {
-          setReflectionDate(
-            String(data.reflection_date).slice(0, 10)
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/reflections/${reflectionId}`
           );
+
+          if (!response.ok) {
+            throw new Error("Failed to load reflection");
+          }
+
+          const data = await response.json();
+
+          if (!active) return;
+
+          setTitle(data.title ?? "");
+          setProjectGroup(data.project_group ?? "");
+
+          setReflectionDate(
+            data.reflection_date
+              ? String(data.reflection_date).slice(0, 10)
+              : ""
+          );
+
+          setWorkedOn(data.worked_on ?? "");
+          setChallenges(data.challenges ?? "");
+          setLearning(data.learned ?? "");
+          setImprovements(data.improvement ?? "");
+          setOtherReflection(data.other_reflection ?? "");
+
+          setLoaded(true);
+        } catch (error) {
+          if (!active) return;
+
+          console.error("Error loading reflection:", error);
+
+          setErrorMessage(
+            "Could not load the reflection. Please reopen it to try again."
+          );
+
+          Alert.alert(
+            "Error",
+            "Could not load the reflection."
+          );
+        } finally {
+          if (active) {
+            setIsLoading(false);
+          }
         }
+      };
 
-        setWorkedOn(data.worked_on ?? "");
-        setChallenges(data.challenges ?? "");
-        setLearning(data.learned ?? "");
-        setImprovements(data.improvement ?? "");
-        setOtherReflection(data.other_reflection ?? "");
-      } catch (error) {
-        console.error("Error loading reflection:", error);
+      void loadReflection();
 
-        Alert.alert(
-          "Error",
-          "Could not load the reflection."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      return () => {
+        active = false;
+      };
+    }, [reflectionId])
+  );
 
-    loadReflection();
-  }, [reflectionId]);
+  // Save current content to the existing draft.
+  const saveDraft = async (): Promise<boolean> => {
+    if (saving.current || isLoading || !loaded) {
+      return false;
+    }
 
-  // Save reflection as draft
-  const saveDraft = async () => {
+    setErrorMessage("");
+
     if (!reflectionId) {
+      setErrorMessage("Reflection ID is missing.");
+
       Alert.alert(
         "Error",
         "Reflection ID is missing."
@@ -93,29 +136,26 @@ export default function Reflection() {
     }
 
     try {
+      saving.current = true;
       setIsSaving(true);
 
       const response = await fetch(
         `${API_BASE_URL}/api/reflections/${reflectionId}`,
         {
           method: "PUT",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
             user_id: 1,
             title,
             project_group: projectGroup,
             reflection_date: reflectionDate,
-
             worked_on: workedOn,
-            challenges: challenges,
+            challenges,
             learned: learning,
             improvement: improvements,
             other_reflection: otherReflection,
-
             status: "draft",
           }),
         }
@@ -125,21 +165,16 @@ export default function Reflection() {
 
       if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Failed to save reflection"
+          data.message || "Failed to save reflection"
         );
       }
 
-      console.log(
-        "Reflection draft saved:",
-        data
-      );
-
       return true;
     } catch (error) {
-      console.error(
-        "Error saving reflection:",
-        error
+      console.error("Error saving reflection:", error);
+
+      setErrorMessage(
+        "Could not save the draft. Please try again."
       );
 
       Alert.alert(
@@ -149,33 +184,44 @@ export default function Reflection() {
 
       return false;
     } finally {
+      saving.current = false;
       setIsSaving(false);
     }
   };
 
-  // Save Draft button
-  const handleSaveDraft = async () => {
+  // Exit without making another save request.
+  // Previously saved data remains in the database.
+  const handleExit = () => {
+    if (saving.current) return;
+
+    setWorkedOn("");
+    setChallenges("");
+    setLearning("");
+    setImprovements("");
+    setOtherReflection("");
+    setLoaded(false);
+    setErrorMessage("");
+
+    router.replace("/(tabs)/reflection-list");
+  };
+
+  // Only exit after the save succeeds.
+  const handleSaveAndExit = async () => {
     const success = await saveDraft();
 
     if (success) {
-      Alert.alert(
-        "Saved",
-        "Your reflection draft has been saved."
-      );
+      handleExit();
     }
   };
 
-  // Next button
+  // Preserve the existing Next workflow.
   const handleNext = async () => {
     const success = await saveDraft();
 
-    if (!success) {
-      return;
-    }
+    if (!success) return;
 
     router.push({
       pathname: "/(tabs)/upload-evidence",
-
       params: {
         reflectionId: String(reflectionId),
       },
@@ -199,7 +245,6 @@ export default function Reflection() {
     >
       <View style={styles.content}>
         {/* Header */}
-
         <Text style={styles.title}>
           Writing Reflection...
         </Text>
@@ -208,14 +253,24 @@ export default function Reflection() {
           Take some time to reflect on your experience.
         </Text>
 
-        {/* What was worked on? */}
+        {/* Error message */}
+        {!!errorMessage && (
+          <Text
+            accessibilityRole="alert"
+            style={styles.errorText}
+          >
+            {errorMessage}
+          </Text>
+        )}
 
+        {/* What was worked on? */}
         <View style={styles.section}>
           <Text style={styles.label}>
             What was worked on?
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -232,17 +287,17 @@ export default function Reflection() {
         </View>
 
         {/* Challenges */}
-
         <View style={styles.section}>
           <Text style={styles.label}>
             What challenges were faced?
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
-            placeholder="Describe some setbacks for example."
+            placeholder="Describe any challenges or difficulties you faced."
             placeholderTextColor="#999"
             value={challenges}
             onChangeText={setChallenges}
@@ -255,13 +310,13 @@ export default function Reflection() {
         </View>
 
         {/* Learning */}
-
         <View style={styles.section}>
           <Text style={styles.label}>
             What did you learn from this experience?
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -278,13 +333,13 @@ export default function Reflection() {
         </View>
 
         {/* Improvements */}
-
         <View style={styles.section}>
           <Text style={styles.label}>
             What improvements will be made for the future?
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -301,13 +356,13 @@ export default function Reflection() {
         </View>
 
         {/* Additional Reflection */}
-
         <View style={styles.section}>
           <Text style={styles.label}>
             What else would you like to reflect on?
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -323,36 +378,28 @@ export default function Reflection() {
           </Text>
         </View>
 
-        {/* Navigation Buttons */}
+        {/* Save Draft opens the options dialog.
+            It does not immediately save the draft. */}
+        <ReflectionExitActions
+          busy={isSaving}
+          saveDisabled={!loaded}
+          onSaveAndExit={handleSaveAndExit}
+          onExit={handleExit}
+        />
 
+        {/* Next saves the draft and opens the evidence page. */}
         <View style={styles.buttonContainer}>
           <Pressable
-            style={[
-              styles.saveButton,
-              isSaving && styles.disabledButton,
-            ]}
-            onPress={handleSaveDraft}
-            disabled={isSaving}
-          >
-            <Text style={styles.saveButtonText}>
-              {isSaving
-                ? "Saving..."
-                : "Save Draft"}
-            </Text>
-          </Pressable>
-
-          <Pressable
+            accessibilityRole="button"
             style={[
               styles.nextButton,
-              isSaving && styles.disabledButton,
+              (isSaving || !loaded) && styles.disabledButton,
             ]}
             onPress={handleNext}
-            disabled={isSaving}
+            disabled={isSaving || !loaded}
           >
             <Text style={styles.nextButtonText}>
-              {isSaving
-                ? "Saving..."
-                : "Next"}
+              {isSaving ? "Saving..." : "Next"}
             </Text>
           </Pressable>
         </View>
@@ -399,6 +446,12 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
 
+  errorText: {
+    color: "#B42318",
+    fontSize: 15,
+    marginBottom: 16,
+  },
+
   section: {
     marginBottom: 30,
   },
@@ -430,30 +483,13 @@ const styles = StyleSheet.create({
 
   buttonContainer: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 5,
-  },
-
-  saveButton: {
-    flex: 1,
-    height: 50,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: "#3F2A88",
-    borderRadius: 15,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  saveButtonText: {
-    color: "#3F2A88",
-    fontSize: 16,
-    fontWeight: "600",
+    marginTop: 12,
   },
 
   nextButton: {
     flex: 1,
-    height: 50,
+    minHeight: 50,
+    padding: 12,
     backgroundColor: "#3F2A88",
     borderRadius: 15,
     justifyContent: "center",

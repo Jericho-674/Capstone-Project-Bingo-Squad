@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import * as Print from "expo-print";
+import { router, useFocusEffect } from "expo-router";
+import * as Sharing from "expo-sharing";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { API_BASE_URL } from "../../services/api";
 
@@ -38,7 +40,82 @@ const FILTERS: (
   "Assessed",
 ];
 
+type ApiReflection = {
+  id: string | number;
+  title?: string | null;
+  status?: string | null;
+  project_group?: string | null;
+  reflection_date?: string | null;
+  updated_at?: string | null;
+  worked_on?: string | null;
+  challenges?: string | null;
+  learned?: string | null;
+  improvement?: string | null;
+  other_reflection?: string | null;
+};
+
+const normaliseStatus = (value?: string | null): Status => {
+  switch (String(value ?? "").trim().toLowerCase()) {
+    case "submitted": return "Submitted";
+    case "assessed": return "Assessed";
+    default: return "Draft";
+  }
+};
+
+const escapeHtml = (value: unknown) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+
+const buildPortfolioHtml = (items: ApiReflection[]) => {
+  const sections = items.map(item => {
+    const fields = [
+      ["What was worked on?", item.worked_on],
+      ["What challenges were faced?", item.challenges],
+      ["What did you learn from this experience?", item.learned],
+      ["What improvements will be made for the future?", item.improvement],
+      ["What else would you like to reflect on?", item.other_reflection],
+    ];
+    return `<section>
+      <h2>${escapeHtml(item.title?.trim() || "Untitled Reflection")}</h2>
+      <p><strong>Status:</strong> ${normaliseStatus(item.status)}</p>
+      <p><strong>Project/Gig:</strong> ${escapeHtml(item.project_group || "Not provided")}</p>
+      <p><strong>Date:</strong> ${escapeHtml(item.reflection_date?.slice(0, 10) || "Not provided")}</p>
+      ${fields.map(([label, value]) => `<h3>${label}</h3><p class="answer">${escapeHtml(value || "Not provided")}</p>`).join("")}
+    </section>`;
+  }).join("");
+
+  return `<!DOCTYPE html>
+  <html lang="en"><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reflection Portfolio</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #222; max-width: 850px; margin: 32px auto; padding: 0 24px; line-height: 1.5; }
+    h1, h2 { color: #3F2A88; overflow-wrap: anywhere; }
+    h3 { font-size: 16px; margin-bottom: 4px; break-after: avoid; }
+    section { border-top: 1px solid #ddd; padding-top: 20px; margin-top: 28px; }
+    .answer { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 0; }
+    .toolbar { background: #EFEBFB; padding: 16px; border-radius: 12px; }
+    button { background: #3F2A88; color: white; padding: 12px 18px; border: 0; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    @page { margin: 18mm; }
+    @media print { .toolbar { display: none; } body { margin: 0; padding: 0; max-width: none; } section + section { break-before: page; } }
+  </style></head><body>
+    <div class="toolbar"><button id="print-portfolio" type="button">Print / Save as PDF</button>
+    <p>Choose “Save as PDF” in the print dialog. Drafts are included and labelled.</p></div>
+    <h1>Reflection Portfolio</h1>
+    <p>Generated: ${escapeHtml(new Date().toLocaleString())}</p>
+    <p>${items.length} saved reflection(s), including drafts.</p>
+    ${sections}
+  </body></html>`;
+};
+
 export default function ReflectionList() {
+  const [loadError, setLoadError] = useState("");
+  const [exportMessage, setExportMessage] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const exporting = useRef(false);
   const [
     reflections,
     setReflections,
@@ -67,87 +144,55 @@ export default function ReflectionList() {
   // LOAD REFLECTIONS
   // ====================================================
 
-  const loadReflections =
-    async () => {
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const loadReflections = async () => {
+      setIsLoading(true);
+      setLoadError("");
+      setExportMessage("");
+
       try {
-        setIsLoading(true);
-
-        console.log(
-          "Loading reflections from backend..."
+        const response = await fetch(
+          `${API_BASE_URL}/api/reflections`,
+          { signal: controller.signal }
         );
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        const data: ApiReflection[] = await response.json();
+        if (!Array.isArray(data)) throw new Error("Invalid reflection response");
+        if (!active) return;
 
-        const response =
-          await fetch(
-            `${API_BASE_URL}/api/reflections`
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to load reflections: ${response.status}`
-          );
-        }
-
-        const data =
-          await response.json();
-
-        console.log(
-          "Reflections received:",
-          data
-        );
-
-        const formattedReflections:
-          ReflectionItem[] =
-          data.map(
-            (item: any) => ({
-              id:
-                String(
-                  item.id
-                ),
-
-              title:
-                item.title,
-
-              status:
-                item.status ===
-                "submitted"
-                  ? "Submitted"
-                  : item.status ===
-                      "assessed"
-                    ? "Assessed"
-                    : "Draft",
-
-              submittedDate:
-                item.status !==
-                "draft"
-                  ? new Date(
-                      item.updated_at
-                    ).toLocaleDateString()
-                  : undefined,
-
-              progress:
-                item.status ===
-                "draft"
-                  ? 0.5
-                  : undefined,
-            })
-          );
-
-        setReflections(
-          formattedReflections
-        );
+        setReflections(data.map(item => {
+          const status = normaliseStatus(item.status);
+          return {
+            id: String(item.id),
+            title: item.title?.trim() || "Untitled Reflection",
+            status,
+            submittedDate: status !== "Draft" && item.updated_at
+              ? new Date(item.updated_at).toLocaleDateString()
+              : undefined,
+            progress: status === "Draft" ? 0.5 : undefined,
+          };
+        }));
       } catch (error) {
-        console.error(
-          "Error loading reflections:",
-          error
-        );
+        if (!active) return;
+        console.error("Error loading reflections:", error);
+        setLoadError("Could not refresh reflections. Check the backend connection and reopen this page. Any previously loaded items may be out of date.");
       } finally {
-        setIsLoading(false);
+        clearTimeout(timeout);
+        if (active) setIsLoading(false);
       }
     };
 
-  useEffect(() => {
-    loadReflections();
-  }, []);
+    void loadReflections();
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, []));
 
   // ====================================================
   // OPEN EXISTING REFLECTION
@@ -268,15 +313,84 @@ export default function ReflectionList() {
   // EXPORT PORTFOLIO
   // ====================================================
 
-  const handleExportPortfolio =
-    () => {
-      console.log(
-        "Export portfolio pressed"
-      );
+  const handleExportPortfolio = async () => {
+    if (exporting.current) return;
+    exporting.current = true;
+    setIsExporting(true);
+    setExportMessage("");
 
-      // EXPORT FUNCTIONALITY
-      // CAN BE ADDED LATER
-    };
+    let preview: Window | null = null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      // Open during the click event, before awaiting requests, to avoid popup blocking.
+      if (Platform.OS === "web") {
+        preview = window.open("", "_blank");
+        if (!preview) {
+          setExportMessage("Your browser blocked the portfolio preview. Allow pop-ups for this site, then try Export Portfolio again.");
+          return;
+        }
+        preview.opener = null;
+        preview.document.title = "Preparing portfolio";
+        preview.document.body.textContent = "Preparing your portfolio...";
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/reflections`,
+        { signal: controller.signal }
+      );
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+      const data: ApiReflection[] = await response.json();
+      if (!Array.isArray(data)) throw new Error("Invalid reflection response");
+      clearTimeout(timeout);
+
+      if (data.length === 0) {
+        preview?.close();
+        setExportMessage("Nothing to export yet. Save a reflection first, then try again.");
+        return;
+      }
+
+      const html = buildPortfolioHtml(data);
+      if (Platform.OS === "web") {
+        if (!preview || preview.closed) {
+          setExportMessage("The preview was closed. Click Export Portfolio to open it again.");
+          return;
+        }
+        preview.document.open();
+        preview.document.write(html);
+        preview.document.close();
+        const printWindow = preview;
+        preview.document.getElementById("print-portfolio")?.addEventListener("click", () => {
+          printWindow.focus();
+          printWindow.print();
+        });
+        setExportMessage("Portfolio preview opened. Click Print / Save as PDF in the new tab, then choose Save as PDF.");
+        return;
+      }
+
+      if (await Sharing.isAvailableAsync()) {
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          UTI: "com.adobe.pdf",
+          dialogTitle: "Export Reflection Portfolio",
+        });
+        setExportMessage("PDF generated. Use the share options to save or send it.");
+      } else {
+        await Print.printAsync({ html });
+        setExportMessage("The print dialog was opened for your portfolio.");
+      }
+    } catch (error) {
+      preview?.close();
+      console.error("Export portfolio error:", error);
+      setExportMessage("Could not export the portfolio. Check your backend connection and try again.");
+    } finally {
+      clearTimeout(timeout);
+      exporting.current = false;
+      setIsExporting(false);
+    }
+  };
 
   const isFilteredOrSearched =
     activeFilter !== "All" ||
@@ -326,6 +440,12 @@ export default function ReflectionList() {
           >
             View all of your reflections.
           </Text>
+
+          {!!loadError && (
+            <Text accessibilityRole="alert" style={styles.errorMessage}>
+              {loadError}
+            </Text>
+          )}
 
           {/* FILTER TABS */}
 
@@ -534,7 +654,7 @@ export default function ReflectionList() {
                   )
                 )}
 
-                {filteredReflections.length ===
+                {!loadError && filteredReflections.length ===
                   0 && (
                   <View
                     style={
@@ -557,7 +677,7 @@ export default function ReflectionList() {
                           styles.emptyStateSubtext
                         }
                       >
-                        Tap "Create New Reflection" below to get started.
+                        Tap &quot;Create New Reflection&quot; below to get started.
                       </Text>
                     )}
                   </View>
@@ -601,12 +721,24 @@ export default function ReflectionList() {
           </Pressable>
 
           {/* EXPORT */}
+          <Text style={styles.exportHint}>
+            Exports all saved reflections, including drafts, regardless of the current filter or search.
+          </Text>
+          {!!exportMessage && (
+            <Text accessibilityRole="alert" style={styles.exportMessage}>
+              {exportMessage}
+            </Text>
+          )}
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Export Portfolio"
+            disabled={isExporting}
             style={({
               pressed,
             }) => [
               styles.secondaryButton,
+              isExporting && styles.disabledButton,
 
               pressed &&
                 styles.primaryButtonPressed,
@@ -628,7 +760,7 @@ export default function ReflectionList() {
                 styles.secondaryButtonText
               }
             >
-              Export Portfolio
+              {isExporting ? "Exporting..." : "Export Portfolio"}
             </Text>
           </Pressable>
         </View>
@@ -710,6 +842,10 @@ export default function ReflectionList() {
 
 const styles =
   StyleSheet.create({
+    errorMessage: { color: "#B42318", marginBottom: 16, fontSize: 14 },
+    exportMessage: { color: "#3F2A88", marginBottom: 12, fontSize: 14 },
+    exportHint: { color: "#555", marginBottom: 10, fontSize: 13 },
+    disabledButton: { opacity: 0.6 },
     container: {
       flex: 1,
       backgroundColor:
