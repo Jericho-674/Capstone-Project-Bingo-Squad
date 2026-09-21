@@ -229,6 +229,7 @@ export default function NewReflection() {
             {/* Day */}
             <View style={styles.dateContainer}>
               <Pressable
+                disabled={isLoading}
                 style={styles.dateInput}
                 onPress={() => {
                   setActiveDateMenu(activeDateMenu === "day" ? "" : "day");
@@ -264,6 +265,7 @@ export default function NewReflection() {
             {/* Month */}
             <View style={styles.dateContainer}>
               <Pressable
+                disabled={isLoading}
                 style={styles.dateInput}
                 onPress={() => {
                   setActiveDateMenu(activeDateMenu === "month" ? "" : "month");
@@ -299,6 +301,7 @@ export default function NewReflection() {
             {/* Year */}
             <View style={styles.dateContainer}>
               <Pressable
+                disabled={isLoading}
                 style={styles.dateInput}
                 onPress={() => {
                   setActiveDateMenu(activeDateMenu === "year" ? "" : "year");
