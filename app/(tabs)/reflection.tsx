@@ -268,6 +268,15 @@ export default function Reflection() {
           Take some time to reflect on your experience.
         </Text>
 
+        {!!errorMessage && (
+          <Text
+            accessibilityRole="alert"
+            style={{ color: "#B42318", marginBottom: 12 }}
+          >
+            {errorMessage}
+          </Text>
+        )}
+
         {/* What was worked on? */}
 
         <View style={styles.section}>
@@ -276,6 +285,7 @@ export default function Reflection() {
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -299,6 +309,7 @@ export default function Reflection() {
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -322,6 +333,7 @@ export default function Reflection() {
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -345,6 +357,7 @@ export default function Reflection() {
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -368,6 +381,7 @@ export default function Reflection() {
           </Text>
 
           <TextInput
+            editable={!isSaving && loaded}
             style={styles.textBox}
             multiline
             textAlignVertical="top"
@@ -384,38 +398,41 @@ export default function Reflection() {
         </View>
 
         {/* Navigation Buttons */}
-
         <View style={styles.buttonContainer}>
           <Pressable
             style={[
               styles.saveButton,
-              isSaving && styles.disabledButton,
+              (isSaving || !loaded) && styles.disabledButton,
             ]}
             onPress={handleSaveDraft}
-            disabled={isSaving}
+            disabled={isSaving || !loaded}
           >
             <Text style={styles.saveButtonText}>
-              {isSaving
-                ? "Saving..."
-                : "Save Draft"}
+              {isSaving ? "Saving..." : "Save Draft"}
             </Text>
           </Pressable>
 
           <Pressable
             style={[
               styles.nextButton,
-              isSaving && styles.disabledButton,
+              (isSaving || !loaded) && styles.disabledButton,
             ]}
             onPress={handleNext}
-            disabled={isSaving}
+            disabled={isSaving || !loaded}
           >
             <Text style={styles.nextButtonText}>
-              {isSaving
-                ? "Saving..."
-                : "Next"}
+              {isSaving ? "Saving..." : "Next"}
             </Text>
           </Pressable>
         </View>
+
+        {/* Save and Exit / Exit without Saving */}
+        <ReflectionExitActions
+          busy={isSaving}
+          saveDisabled={!loaded}
+          onSaveAndExit={handleSaveAndExit}
+          onExit={handleExit}
+        />
       </View>
     </ScrollView>
   );
