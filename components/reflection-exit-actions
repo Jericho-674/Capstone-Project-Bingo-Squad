@@ -1,0 +1,56 @@
+import { useState } from "react";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+
+type Props = {
+  busy: boolean;
+  saveDisabled?: boolean;
+  onSaveAndExit: () => void;
+  onExit: () => void;
+};
+
+export function ReflectionExitActions({ busy, saveDisabled, onSaveAndExit, onExit }: Props) {
+  const [confirmExit, setConfirmExit] = useState(false);
+
+  return (
+    <View style={styles.actions}>
+      <Pressable accessibilityRole="button" disabled={busy || saveDisabled}
+        style={[styles.button, (busy || saveDisabled) && styles.disabled]} onPress={onSaveAndExit}>
+        <Text style={styles.saveText}>Save and Exit</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" disabled={busy}
+        style={[styles.button, busy && styles.disabled]} onPress={() => setConfirmExit(true)}>
+        <Text style={styles.discardText}>Exit without Saving</Text>
+      </Pressable>
+      <Modal visible={confirmExit} transparent animationType="fade"
+        onRequestClose={() => setConfirmExit(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text style={styles.heading}>Exit without saving?</Text>
+            <Text>Your unsaved changes will be lost. Previously saved drafts will be kept.</Text>
+            <Pressable accessibilityRole="button" style={styles.button}
+              onPress={() => setConfirmExit(false)}>
+              <Text style={styles.saveText}>Keep Editing</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} style={styles.button}
+              onPress={() => { setConfirmExit(false); onExit(); }}>
+              <Text style={styles.discardText}>Exit without Saving</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  actions: { gap: 12, marginTop: 16 },
+  button: { minHeight: 50, padding: 12, borderWidth: 1, borderColor: "#3F2A88",
+    borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" },
+  saveText: { color: "#3F2A88", fontSize: 16, fontWeight: "600" },
+  discardText: { color: "#B42318", fontSize: 16, fontWeight: "600" },
+  disabled: { opacity: 0.6 },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 24 },
+  dialog: { width: "100%", maxWidth: 440, alignSelf: "center", padding: 24,
+    borderRadius: 16, backgroundColor: "#FFFFFF", gap: 16 },
+  heading: { fontSize: 20, fontWeight: "700" },
+});
