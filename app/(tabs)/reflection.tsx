@@ -116,10 +116,19 @@ export default function Reflection() {
       };
     }, [reflectionId])
   );
+
   
   // Save reflection as draft
   const saveDraft = async () => {
+    if (saving.current || isLoading || !loaded) {
+      return false;
+    }
+
+    setErrorMessage("");
+
     if (!reflectionId) {
+      setErrorMessage("Reflection ID is missing.");
+
       Alert.alert(
         "Error",
         "Reflection ID is missing."
@@ -129,29 +138,26 @@ export default function Reflection() {
     }
 
     try {
+      saving.current = true;
       setIsSaving(true);
 
       const response = await fetch(
         `${API_BASE_URL}/api/reflections/${reflectionId}`,
         {
           method: "PUT",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
             user_id: 1,
             title,
             project_group: projectGroup,
             reflection_date: reflectionDate,
-
             worked_on: workedOn,
-            challenges: challenges,
+            challenges,
             learned: learning,
             improvement: improvements,
             other_reflection: otherReflection,
-
             status: "draft",
           }),
         }
@@ -161,21 +167,18 @@ export default function Reflection() {
 
       if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Failed to save reflection"
+          data.message || "Failed to save reflection"
         );
       }
 
-      console.log(
-        "Reflection draft saved:",
-        data
-      );
+      console.log("Reflection draft saved:", data);
 
       return true;
     } catch (error) {
-      console.error(
-        "Error saving reflection:",
-        error
+      console.error("Error saving reflection:", error);
+
+      setErrorMessage(
+        "Could not save the draft. Please try again."
       );
 
       Alert.alert(
@@ -185,7 +188,28 @@ export default function Reflection() {
 
       return false;
     } finally {
+      saving.current = false;
       setIsSaving(false);
+    }
+  };
+    const handleExit = () => {
+    if (saving.current) return;
+
+    setWorkedOn("");
+    setChallenges("");
+    setLearning("");
+    setImprovements("");
+    setOtherReflection("");
+    setLoaded(false);
+
+    router.replace("/(tabs)/reflection-list");
+  };
+
+  const handleSaveAndExit = async () => {
+    const success = await saveDraft();
+
+    if (success) {
+      handleExit();
     }
   };
 
