@@ -46,56 +46,122 @@ export default function NewReflection() {
 
   const years = ["2026", "2027", "2028", "2029", "2030"];
 
-  const handleContinue = async () => {
+  const saving = useRef(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const resetForm = () => {
+    const now = new Date();
+
+    setTitle("");
+    setProjectGroup("");
+    setDay(String(now.getDate()));
+    setMonth(months[now.getMonth()]);
+    setYear(String(now.getFullYear()));
+    setActiveDateMenu("");
+    setErrorMessage("");
+  };
+
+  const handleExit = () => {
+    if (saving.current) return;
+
+    resetForm();
+    router.replace("/(tabs)/reflection-list");
+  };
+
+  const handleContinue = async (exitAfterSave = false) => {
+    if (saving.current) return;
+
+    setErrorMessage("");
+
     if (!title.trim()) {
-      Alert.alert("Missing Information", "Please enter a reflection title.");
+      setErrorMessage("Please enter a reflection title.");
+      Alert.alert(
+        "Missing Information",
+        "Please enter a reflection title."
+      );
       return;
     }
 
     if (!projectGroup.trim()) {
-      Alert.alert("Missing Information", "Please enter a project or gig.");
+      setErrorMessage("Please enter a project or gig.");
+      Alert.alert(
+        "Missing Information",
+        "Please enter a project or gig."
+      );
       return;
     }
 
     if (!day || !month || !year) {
-      Alert.alert("Missing Information", "Please select a complete date.");
+      setErrorMessage("Please select a complete date.");
+      Alert.alert(
+        "Missing Information",
+        "Please select a complete date."
+      );
+      return;
+    }
+
+    const selectedDate = new Date(
+      Number(year),
+      months.indexOf(month),
+      Number(day)
+    );
+
+    if (
+      selectedDate.getDate() !== Number(day) ||
+      selectedDate.getMonth() !== months.indexOf(month)
+    ) {
+      setErrorMessage("Please select a valid date.");
       return;
     }
 
     try {
+      saving.current = true;
       setIsLoading(true);
 
       const monthNumber = months.indexOf(month) + 1;
       const formattedMonth = String(monthNumber).padStart(2, "0");
       const formattedDay = String(day).padStart(2, "0");
 
-      const reflectionDate = `${year}-${formattedMonth}-${formattedDay}`;
+      const reflectionDate =
+        `${year}-${formattedMonth}-${formattedDay}`;
 
-      const response = await fetch(`${API_BASE_URL}/api/reflections`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: 1,
-          title: title.trim(),
-          project_group: projectGroup.trim(),
-          reflection_date: reflectionDate,
-          worked_on: "",
-          challenges: "",
-          learned: "",
-          improvement: "",
-          status: "draft",
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/reflections`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: 1,
+            title: title.trim(),
+            project_group: projectGroup.trim(),
+            reflection_date: reflectionDate,
+            worked_on: "",
+            challenges: "",
+            learned: "",
+            improvement: "",
+            status: "draft",
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to create reflection");
+        throw new Error(
+          data.message || "Failed to create reflection"
+        );
       }
 
       console.log("Reflection created:", data);
+
+      resetForm();
+
+      if (exitAfterSave) {
+        router.replace("/(tabs)/reflection-list");
+        return;
+      }
 
       router.push({
         pathname: "/(tabs)/reflection",
@@ -106,11 +172,16 @@ export default function NewReflection() {
     } catch (error) {
       console.error("Error creating reflection:", error);
 
+      setErrorMessage(
+        "Could not save the reflection. Please try again."
+      );
+
       Alert.alert(
         "Error",
-        "Could not create the reflection. Please try again.",
+        "Could not create the reflection. Please try again."
       );
     } finally {
+      saving.current = false;
       setIsLoading(false);
     }
   };
@@ -128,6 +199,7 @@ export default function NewReflection() {
           <Text style={styles.label}>Reflection Title</Text>
 
           <TextInput
+            editable={!isLoading}
             style={styles.input}
             placeholder="e.g. Project Reflection"
             placeholderTextColor="#999"
