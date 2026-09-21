@@ -6,10 +6,6 @@ import {
 
 import { useCallback, useRef, useState } from "react";
 
-import { ReflectionExitActions } from "../../components/reflection-exit-actions";
-
-import { API_BASE_URL } from "../../services/api";
-
 import {
   Alert,
   Pressable,
@@ -20,11 +16,10 @@ import {
   View,
 } from "react-native";
 
+import { ReflectionExitActions } from "../../components/reflection-exit-actions";
+import { API_BASE_URL } from "../../services/api";
+
 export default function Reflection() {
-  const saving = useRef(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [loaded, setLoaded] = useState(false);
-  
   const params = useLocalSearchParams();
 
   const reflectionId = Array.isArray(params.reflectionId)
@@ -43,8 +38,12 @@ export default function Reflection() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-// Load existing reflection draft whenever this page opens
+  const saving = useRef(false);
+
+  // Reload saved content whenever this page becomes active.
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -117,9 +116,8 @@ export default function Reflection() {
     }, [reflectionId])
   );
 
-  
-  // Save reflection as draft
-  const saveDraft = async () => {
+  // Save current content to the existing draft.
+  const saveDraft = async (): Promise<boolean> => {
     if (saving.current || isLoading || !loaded) {
       return false;
     }
@@ -171,8 +169,6 @@ export default function Reflection() {
         );
       }
 
-      console.log("Reflection draft saved:", data);
-
       return true;
     } catch (error) {
       console.error("Error saving reflection:", error);
@@ -192,7 +188,10 @@ export default function Reflection() {
       setIsSaving(false);
     }
   };
-    const handleExit = () => {
+
+  // Exit without making another save request.
+  // Previously saved data remains in the database.
+  const handleExit = () => {
     if (saving.current) return;
 
     setWorkedOn("");
@@ -201,10 +200,12 @@ export default function Reflection() {
     setImprovements("");
     setOtherReflection("");
     setLoaded(false);
+    setErrorMessage("");
 
     router.replace("/(tabs)/reflection-list");
   };
 
+  // Only exit after the save succeeds.
   const handleSaveAndExit = async () => {
     const success = await saveDraft();
 
@@ -213,29 +214,14 @@ export default function Reflection() {
     }
   };
 
-  // Save Draft button
-  const handleSaveDraft = async () => {
-    const success = await saveDraft();
-
-    if (success) {
-      Alert.alert(
-        "Saved",
-        "Your reflection draft has been saved."
-      );
-    }
-  };
-
-  // Next button
+  // Preserve the existing Next workflow.
   const handleNext = async () => {
     const success = await saveDraft();
 
-    if (!success) {
-      return;
-    }
+    if (!success) return;
 
     router.push({
       pathname: "/(tabs)/upload-evidence",
-
       params: {
         reflectionId: String(reflectionId),
       },
@@ -258,8 +244,6 @@ export default function Reflection() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.content}>
-        {/* Header */}
-
         <Text style={styles.title}>
           Writing Reflection...
         </Text>
@@ -271,13 +255,11 @@ export default function Reflection() {
         {!!errorMessage && (
           <Text
             accessibilityRole="alert"
-            style={{ color: "#B42318", marginBottom: 12 }}
+            style={styles.errorText}
           >
             {errorMessage}
           </Text>
         )}
-
-        {/* What was worked on? */}
 
         <View style={styles.section}>
           <Text style={styles.label}>
@@ -301,8 +283,6 @@ export default function Reflection() {
           </Text>
         </View>
 
-        {/* Challenges */}
-
         <View style={styles.section}>
           <Text style={styles.label}>
             What challenges were faced?
@@ -313,7 +293,7 @@ export default function Reflection() {
             style={styles.textBox}
             multiline
             textAlignVertical="top"
-            placeholder="Describe some setbacks for example."
+            placeholder="Describe any challenges or difficulties you faced."
             placeholderTextColor="#999"
             value={challenges}
             onChangeText={setChallenges}
@@ -324,8 +304,6 @@ export default function Reflection() {
             {challenges.length} / 2000 characters
           </Text>
         </View>
-
-        {/* Learning */}
 
         <View style={styles.section}>
           <Text style={styles.label}>
@@ -349,8 +327,6 @@ export default function Reflection() {
           </Text>
         </View>
 
-        {/* Improvements */}
-
         <View style={styles.section}>
           <Text style={styles.label}>
             What improvements will be made for the future?
@@ -372,8 +348,6 @@ export default function Reflection() {
             {improvements.length} / 2000 characters
           </Text>
         </View>
-
-        {/* Additional Reflection */}
 
         <View style={styles.section}>
           <Text style={styles.label}>
@@ -397,22 +371,18 @@ export default function Reflection() {
           </Text>
         </View>
 
-        {/* Navigation Buttons */}
+        {/* Save Draft opens the dialog without saving immediately. */}
+        <ReflectionExitActions
+          busy={isSaving}
+          saveDisabled={!loaded}
+          onSaveAndExit={handleSaveAndExit}
+          onExit={handleExit}
+        />
+
+        {/* Next saves the draft and opens the evidence page. */}
         <View style={styles.buttonContainer}>
           <Pressable
-            style={[
-              styles.saveButton,
-              (isSaving || !loaded) && styles.disabledButton,
-            ]}
-            onPress={handleSaveDraft}
-            disabled={isSaving || !loaded}
-          >
-            <Text style={styles.saveButtonText}>
-              {isSaving ? "Saving..." : "Save Draft"}
-            </Text>
-          </Pressable>
-
-          <Pressable
+            accessibilityRole="button"
             style={[
               styles.nextButton,
               (isSaving || !loaded) && styles.disabledButton,
@@ -425,14 +395,6 @@ export default function Reflection() {
             </Text>
           </Pressable>
         </View>
-
-        {/* Save and Exit / Exit without Saving */}
-        <ReflectionExitActions
-          busy={isSaving}
-          saveDisabled={!loaded}
-          onSaveAndExit={handleSaveAndExit}
-          onExit={handleExit}
-        />
       </View>
     </ScrollView>
   );
@@ -476,6 +438,12 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
 
+  errorText: {
+    color: "#B42318",
+    fontSize: 15,
+    marginBottom: 16,
+  },
+
   section: {
     marginBottom: 30,
   },
@@ -507,30 +475,13 @@ const styles = StyleSheet.create({
 
   buttonContainer: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 5,
-  },
-
-  saveButton: {
-    flex: 1,
-    height: 50,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: "#3F2A88",
-    borderRadius: 15,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  saveButtonText: {
-    color: "#3F2A88",
-    fontSize: 16,
-    fontWeight: "600",
+    marginTop: 12,
   },
 
   nextButton: {
     flex: 1,
-    height: 50,
+    minHeight: 50,
+    padding: 12,
     backgroundColor: "#3F2A88",
     borderRadius: 15,
     justifyContent: "center",
