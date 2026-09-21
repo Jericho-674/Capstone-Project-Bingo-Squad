@@ -1,11 +1,5 @@
 import { router } from "expo-router";
-
 import { useRef, useState } from "react";
-
-import { ReflectionExitActions } from "../../components/reflection-exit-actions";
-
-import { API_BASE_URL } from "../../services/api";
-
 import {
   Alert,
   Pressable,
@@ -15,6 +9,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { ReflectionExitActions } from "../../components/reflection-exit-actions";
+import { API_BASE_URL } from "../../services/api";
 
 export default function NewReflection() {
   const today = new Date();
@@ -41,13 +38,12 @@ export default function NewReflection() {
   const [year, setYear] = useState(String(today.getFullYear()));
   const [activeDateMenu, setActiveDateMenu] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const days = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
-
-  const years = ["2026", "2027", "2028", "2029", "2030"];
+  const [errorMessage, setErrorMessage] = useState("");
 
   const saving = useRef(false);
-  const [errorMessage, setErrorMessage] = useState("");
+
+  const days = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
+  const years = ["2026", "2027", "2028", "2029", "2030"];
 
   const resetForm = () => {
     const now = new Date();
@@ -77,7 +73,7 @@ export default function NewReflection() {
       setErrorMessage("Please enter a reflection title.");
       Alert.alert(
         "Missing Information",
-        "Please enter a reflection title."
+        "Please enter a reflection title.",
       );
       return;
     }
@@ -86,7 +82,7 @@ export default function NewReflection() {
       setErrorMessage("Please enter a project or gig.");
       Alert.alert(
         "Missing Information",
-        "Please enter a project or gig."
+        "Please enter a project or gig.",
       );
       return;
     }
@@ -95,7 +91,7 @@ export default function NewReflection() {
       setErrorMessage("Please select a complete date.");
       Alert.alert(
         "Missing Information",
-        "Please select a complete date."
+        "Please select a complete date.",
       );
       return;
     }
@@ -103,7 +99,7 @@ export default function NewReflection() {
     const selectedDate = new Date(
       Number(year),
       months.indexOf(month),
-      Number(day)
+      Number(day),
     );
 
     if (
@@ -121,7 +117,6 @@ export default function NewReflection() {
       const monthNumber = months.indexOf(month) + 1;
       const formattedMonth = String(monthNumber).padStart(2, "0");
       const formattedDay = String(day).padStart(2, "0");
-
       const reflectionDate =
         `${year}-${formattedMonth}-${formattedDay}`;
 
@@ -143,18 +138,16 @@ export default function NewReflection() {
             improvement: "",
             status: "draft",
           }),
-        }
+        },
       );
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create reflection"
+          data.message || "Failed to create reflection",
         );
       }
-
-      console.log("Reflection created:", data);
 
       resetForm();
 
@@ -173,12 +166,12 @@ export default function NewReflection() {
       console.error("Error creating reflection:", error);
 
       setErrorMessage(
-        "Could not save the reflection. Please try again."
+        "Could not save the reflection. Please try again.",
       );
 
       Alert.alert(
         "Error",
-        "Could not create the reflection. Please try again."
+        "Could not create the reflection. Please try again.",
       );
     } finally {
       saving.current = false;
@@ -187,14 +180,17 @@ export default function NewReflection() {
   };
 
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.content}>
-        {/* Header */}
         <Text style={styles.title}>Basic Information</Text>
 
-        <Text style={styles.subtitle}>Tell us about your reflection</Text>
+        <Text style={styles.subtitle}>
+          Tell us about your reflection
+        </Text>
 
-        {/* Reflection Title */}
         <View style={styles.field}>
           <Text style={styles.label}>Reflection Title</Text>
 
@@ -208,11 +204,11 @@ export default function NewReflection() {
           />
         </View>
 
-        {/* Project/Gig */}
         <View style={styles.field}>
           <Text style={styles.label}>Project/Gig</Text>
 
           <TextInput
+            editable={!isLoading}
             style={styles.input}
             placeholder="What was worked on? e.g.: Name of Project"
             placeholderTextColor="#999"
@@ -221,24 +217,25 @@ export default function NewReflection() {
           />
         </View>
 
-        {/* Date */}
         <View style={styles.field}>
           <Text style={styles.label}>Date</Text>
 
           <View style={styles.dateRow}>
-            {/* Day */}
             <View style={styles.dateContainer}>
               <Pressable
                 disabled={isLoading}
                 style={styles.dateInput}
                 onPress={() => {
-                  setActiveDateMenu(activeDateMenu === "day" ? "" : "day");
+                  setActiveDateMenu(
+                    activeDateMenu === "day" ? "" : "day",
+                  );
                 }}
               >
-                <Text style={day ? styles.selectedText : styles.placeholder}>
+                <Text
+                  style={day ? styles.selectedText : styles.placeholder}
+                >
                   {day || "Day"}
                 </Text>
-
                 <Text style={styles.arrow}>▼</Text>
               </Pressable>
 
@@ -248,13 +245,16 @@ export default function NewReflection() {
                     {days.map((item) => (
                       <Pressable
                         key={item}
+                        disabled={isLoading}
                         style={styles.dropdownOption}
                         onPress={() => {
                           setDay(item);
                           setActiveDateMenu("");
                         }}
                       >
-                        <Text style={styles.dropdownText}>{item}</Text>
+                        <Text style={styles.dropdownText}>
+                          {item}
+                        </Text>
                       </Pressable>
                     ))}
                   </ScrollView>
@@ -262,19 +262,21 @@ export default function NewReflection() {
               )}
             </View>
 
-            {/* Month */}
             <View style={styles.dateContainer}>
               <Pressable
                 disabled={isLoading}
                 style={styles.dateInput}
                 onPress={() => {
-                  setActiveDateMenu(activeDateMenu === "month" ? "" : "month");
+                  setActiveDateMenu(
+                    activeDateMenu === "month" ? "" : "month",
+                  );
                 }}
               >
-                <Text style={month ? styles.selectedText : styles.placeholder}>
+                <Text
+                  style={month ? styles.selectedText : styles.placeholder}
+                >
                   {month || "Month"}
                 </Text>
-
                 <Text style={styles.arrow}>▼</Text>
               </Pressable>
 
@@ -284,13 +286,16 @@ export default function NewReflection() {
                     {months.map((item) => (
                       <Pressable
                         key={item}
+                        disabled={isLoading}
                         style={styles.dropdownOption}
                         onPress={() => {
                           setMonth(item);
                           setActiveDateMenu("");
                         }}
                       >
-                        <Text style={styles.dropdownText}>{item}</Text>
+                        <Text style={styles.dropdownText}>
+                          {item}
+                        </Text>
                       </Pressable>
                     ))}
                   </ScrollView>
@@ -298,19 +303,21 @@ export default function NewReflection() {
               )}
             </View>
 
-            {/* Year */}
             <View style={styles.dateContainer}>
               <Pressable
                 disabled={isLoading}
                 style={styles.dateInput}
                 onPress={() => {
-                  setActiveDateMenu(activeDateMenu === "year" ? "" : "year");
+                  setActiveDateMenu(
+                    activeDateMenu === "year" ? "" : "year",
+                  );
                 }}
               >
-                <Text style={year ? styles.selectedText : styles.placeholder}>
+                <Text
+                  style={year ? styles.selectedText : styles.placeholder}
+                >
                   {year || "Year"}
                 </Text>
-
                 <Text style={styles.arrow}>▼</Text>
               </Pressable>
 
@@ -320,13 +327,16 @@ export default function NewReflection() {
                     {years.map((item) => (
                       <Pressable
                         key={item}
+                        disabled={isLoading}
                         style={styles.dropdownOption}
                         onPress={() => {
                           setYear(item);
                           setActiveDateMenu("");
                         }}
                       >
-                        <Text style={styles.dropdownText}>{item}</Text>
+                        <Text style={styles.dropdownText}>
+                          {item}
+                        </Text>
                       </Pressable>
                     ))}
                   </ScrollView>
@@ -336,16 +346,15 @@ export default function NewReflection() {
           </View>
         </View>
 
-                {!!errorMessage && (
+        {!!errorMessage && (
           <Text
             accessibilityRole="alert"
-            style={{ color: "#B42318", marginBottom: 12 }}
+            style={styles.errorText}
           >
             {errorMessage}
           </Text>
         )}
 
-        {/* Continue */}
         <Pressable
           style={[
             styles.continueButton,
@@ -359,7 +368,6 @@ export default function NewReflection() {
           </Text>
         </Pressable>
 
-        {/* Save and Exit / Exit without Saving */}
         <ReflectionExitActions
           busy={isLoading}
           onSaveAndExit={() => handleContinue(true)}
@@ -375,38 +383,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8F8F8",
   },
-
   content: {
     width: "90%",
     alignSelf: "center",
     paddingTop: 10,
     paddingBottom: 30,
   },
-
   title: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#000",
   },
-
   subtitle: {
     fontSize: 16,
     color: "#555",
     marginTop: 5,
     marginBottom: 30,
   },
-
   field: {
     marginBottom: 22,
   },
-
   label: {
     fontSize: 16,
     fontWeight: "600",
     color: "#000",
     marginBottom: 8,
   },
-
   input: {
     width: "100%",
     height: 50,
@@ -417,46 +419,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     justifyContent: "center",
   },
-
   placeholder: {
     color: "#999",
     fontSize: 15,
   },
-
   selectedText: {
     color: "#000",
     fontSize: 14,
   },
-
   arrow: {
     position: "absolute",
     right: 10,
     color: "#3F2A88",
     fontSize: 12,
   },
-
   dropdownOption: {
     paddingVertical: 14,
     paddingHorizontal: 15,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5E5",
   },
-
   dropdownText: {
     fontSize: 15,
     color: "#000",
   },
-
   dateRow: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-
   dateContainer: {
     width: "31%",
     position: "relative",
   },
-
   dateInput: {
     width: "100%",
     height: 50,
@@ -468,7 +462,6 @@ const styles = StyleSheet.create({
     paddingRight: 28,
     justifyContent: "center",
   },
-
   dateDropdown: {
     position: "absolute",
     top: 55,
@@ -482,7 +475,6 @@ const styles = StyleSheet.create({
     zIndex: 100,
     elevation: 10,
   },
-
   continueButton: {
     width: "100%",
     height: 50,
@@ -492,14 +484,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
-
   disabledButton: {
     opacity: 0.6,
   },
-
   continueButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  errorText: {
+    color: "#B42318",
+    marginBottom: 12,
   },
 });
