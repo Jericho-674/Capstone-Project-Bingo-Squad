@@ -1,16 +1,14 @@
-﻿import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import { router, useFocusEffect } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+
+import { rankReflections, type SearchableReflection } from "../../services/reflectionSearch";
+
 import { API_BASE_URL } from "../../services/api";
-import {
-  rankReflections,
-  type SearchableReflection,
-} from "../../services/reflectionSearch";
 
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -26,33 +24,12 @@ type Status =
   | "Submitted"
   | "Assessed";
 
-type ApiReflection = {
-  id: number | string;
-  title?: string | null;
-  status?: string | null;
-  project_group?: string | null;
-  worked_on?: string | null;
-  challenges?: string | null;
-  learned?: string | null;
-  improvement?: string | null;
-  other_reflection?: string | null;
-  updated_at?: string | null;
-};
-
-interface ReflectionItem
-  extends SearchableReflection {
+interface ReflectionItem extends SearchableReflection {
   id: string;
   title: string;
   status: Status;
   submittedDate?: string;
   progress?: number;
-  projectGroup?: string | null;
-  workedOn?: string | null;
-  challenges?: string | null;
-  learned?: string | null;
-  improvement?: string | null;
-  otherReflection?: string | null;
-  updatedAt?: string | null;
 }
 
 type ReflectionRecord = {
@@ -103,15 +80,34 @@ const FILTERS: (
   "Assessed",
 ];
 
-const escapeHtml = (
-  value: unknown
-) =>
-  String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+type ApiReflection = {
+  id: string | number;
+  title?: string | null;
+  status?: string | null;
+  project_group?: string | null;
+  reflection_date?: string | null;
+  updated_at?: string | null;
+  worked_on?: string | null;
+  challenges?: string | null;
+  learned?: string | null;
+  improvement?: string | null;
+  other_reflection?: string | null;
+};
+
+const normaliseStatus = (value?: string | null): Status => {
+  switch (String(value ?? "").trim().toLowerCase()) {
+    case "submitted": return "Submitted";
+    case "assessed": return "Assessed";
+    default: return "Draft";
+  }
+};
+
+const escapeHtml = (value: unknown) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
 
 const formatDate = (
   value?: string | null
@@ -143,10 +139,11 @@ const scoreText = (
     : `${value} / 5`;
 
 async function fetchJsonOrNull<T>(
-  url: string
+  url: string,
+  signal?: AbortSignal
 ): Promise<T | null> {
   const response =
-    await fetch(url);
+    await fetch(url, { signal });
 
   if (
     response.status === 404
@@ -341,9 +338,15 @@ const buildPortfolioHtml = (
             display: flex;
             justify-content: space-between;
           }
+          .toolbar { padding: 16px; margin-bottom: 24px; background: #EFEBFB; border-radius: 12px; }
+          .toolbar button { padding: 12px 18px; background: #3F2A88; color: white; border: 0; border-radius: 8px; cursor: pointer; }
+          p { white-space: pre-wrap; overflow-wrap: anywhere; }
+          @media print { .toolbar { display: none; } }
         </style>
       </head>
       <body>
+        <div class="toolbar"><button id="print-portfolio" type="button">Print / Save as PDF</button>
+        <p>Choose Save as PDF in the print dialog. Drafts are included and labelled.</p></div>
         <h1>Bingo Squad Reflection Portfolio</h1>
         <p class="subtitle">Generated ${escapeHtml(generatedAt)}</p>
         ${sections}
@@ -353,15 +356,23 @@ const buildPortfolioHtml = (
 };
 
 export default function ReflectionList() {
+  const [loadError, setLoadError] = useState("");
+  const [exportMessage, setExportMessage] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const exporting = useRef(false);
   const [
     reflections,
     setReflections,
-  ] = useState<ReflectionItem[]>([]);
+  ] = useState<
+    ReflectionItem[]
+  >([]);
 
   const [
     activeFilter,
     setActiveFilter,
-  ] = useState<"All" | Status>("All");
+  ] = useState<
+    "All" | Status
+  >("All");
 
   const [
     searchText,
@@ -373,65 +384,40 @@ export default function ReflectionList() {
     setIsLoading,
   ] = useState(true);
 
-  const [
-    isExporting,
-    setIsExporting,
-  ] = useState(false);
-
   // ====================================================
   // LOAD REFLECTIONS
   // ====================================================
 
-    const loadReflections = useCallback(async () => {
-     try {
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const loadReflections = async () => {
       setIsLoading(true);
+      setLoadError("");
+      setExportMessage("");
 
-      console.log("Loading reflections from backend...");
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/reflections`
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to load reflections: ${response.status}`
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/reflections`,
+          { signal: controller.signal }
         );
-      }
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        const data: ApiReflection[] = await response.json();
+        if (!Array.isArray(data)) throw new Error("Invalid reflection response");
+        if (!active) return;
 
-      const data =
-        (await response.json()) as ApiReflection[];
-
-      console.log("Reflections received:", data);
-
-      const formattedReflections: ReflectionItem[] = data.map(
-        (item) => {
-          const normalisedStatus = String(
-            item.status ?? ""
-          ).toLowerCase();
-
-          const status: Status =
-            normalisedStatus === "submitted"
-              ? "Submitted"
-              : normalisedStatus === "assessed"
-                ? "Assessed"
-                : "Draft";
-
+        setReflections(data.map(item => {
+          const status = normaliseStatus(item.status);
           return {
             id: String(item.id),
-
-            title:
-              item.title?.trim() || "Untitled Reflection",
-
+            title: item.title?.trim() || "Untitled Reflection",
             status,
-
-            submittedDate:
-              normalisedStatus !== "draft" && item.updated_at
-                ? new Date(item.updated_at).toLocaleDateString()
-                : undefined,
-
-            progress:
-              normalisedStatus === "draft" ? 0.5 : undefined,
-
+            submittedDate: status !== "Draft" && item.updated_at
+              ? new Date(item.updated_at).toLocaleDateString()
+              : undefined,
+            progress: status === "Draft" ? 0.5 : undefined,
             projectGroup: item.project_group,
             workedOn: item.worked_on,
             challenges: item.challenges,
@@ -440,85 +426,77 @@ export default function ReflectionList() {
             otherReflection: item.other_reflection,
             updatedAt: item.updated_at,
           };
-        }
-      );
+        }));
+      } catch (error) {
+        if (!active) return;
+        console.error("Error loading reflections:", error);
+        setLoadError("Could not refresh reflections. Check the backend connection and reopen this page. Any previously loaded items may be out of date.");
+      } finally {
+        clearTimeout(timeout);
+        if (active) setIsLoading(false);
+      }
+    };
 
-      setReflections(formattedReflections);
-    } catch (error) {
-      console.error("Error loading reflections:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadReflections();
-    }, [loadReflections])
-  );
+    void loadReflections();
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, []));
 
   // ====================================================
   // OPEN EXISTING REFLECTION
   // ====================================================
 
-  const handleOpenReflection = (
-    item: ReflectionItem
-  ) => {
-    console.log(
-      "Opening reflection:",
-      item.id,
-      item.status
-    );
+  const handleOpenReflection =
+    (
+      item: ReflectionItem
+    ) => {
+      console.log(
+        "Opening reflection:",
+        item.id,
+        item.status
+      );
 
-    if (item.status === "Draft") {
+      if (
+        item.status ===
+        "Draft"
+      ) {
+        router.push({
+          pathname:
+            "/(tabs)/reflection",
+
+          params: {
+            reflectionId:
+              item.id,
+          },
+        });
+
+        return;
+      }
+
       router.push({
         pathname:
-          "/(tabs)/reflection",
+          "/(tabs)/assessment-result",
 
         params: {
           reflectionId:
             item.id,
         },
       });
-
-      return;
-    }
-
-    router.push({
-      pathname:
-        "/(tabs)/assessment-result",
-
-      params: {
-        reflectionId:
-          item.id,
-      },
-    });
-  };
+    };
 
   // ====================================================
-  // FILTER + LOCAL SEMANTIC SEARCH
+  // FILTER + SEARCH
   // ====================================================
 
-  const filteredReflections =
-    useMemo(() => {
-      const statusFiltered =
-        reflections.filter(
-          (item) =>
-            activeFilter ===
-              "All" ||
-            item.status ===
-              activeFilter
-        );
-
-      return rankReflections(
-        statusFiltered,
-        searchText
-      );
-    }, [
-      reflections,
-      activeFilter,
-      searchText,
-    ]);
+  const filteredReflections = useMemo(() => {
+    const statusFiltered = reflections.filter(item =>
+      activeFilter === "All" || item.status === activeFilter
+    );
+    return rankReflections(statusFiltered, searchText);
+  }, [reflections, activeFilter, searchText]);
 
   // ====================================================
   // STATUS ICON
@@ -562,166 +540,99 @@ export default function ReflectionList() {
   // EXPORT PORTFOLIO
   // ====================================================
 
-  const handleExportPortfolio =
-    async () => {
-      try {
-        setIsExporting(true);
+  const handleExportPortfolio = async () => {
+    if (exporting.current) return;
+    exporting.current = true;
+    setIsExporting(true);
+    setExportMessage("");
 
-        const reflectionResponse =
-          await fetch(
-            `${API_BASE_URL}/api/reflections`
-          );
+    let preview: Window | null = null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-        if (
-          !reflectionResponse.ok
-        ) {
-          throw new Error(
-            `Failed to load reflections: ${reflectionResponse.status}`
-          );
-        }
-
-        const allReflections =
-          (await reflectionResponse.json()) as ReflectionRecord[];
-
-        const exportableReflections =
-          allReflections.filter(
-            (item) => {
-              const status =
-                String(
-                  item.status || ""
-                ).toLowerCase();
-
-              return (
-                status ===
-                  "submitted" ||
-                status ===
-                  "assessed"
-              );
-            }
-          );
-
-        if (
-          exportableReflections.length ===
-          0
-        ) {
-          Alert.alert(
-            "Nothing to export",
-            "Submit or assess at least one reflection before exporting a portfolio."
-          );
-
+    try {
+      // Open during the click event, before awaiting requests, to avoid popup blocking.
+      if (Platform.OS === "web") {
+        preview = window.open("", "_blank");
+        if (!preview) {
+          setExportMessage("Your browser blocked the portfolio preview. Allow pop-ups for this site, then try Export Portfolio again.");
           return;
         }
-
-        const portfolioItems =
-          await Promise.all(
-            exportableReflections.map(
-              async (
-                reflection
-              ) => {
-                const id =
-                  reflection.id;
-
-                const [
-                  selfAssessment,
-                  assessment,
-                  evidence,
-                ] =
-                  await Promise.all(
-                    [
-                      fetchJsonOrNull<SelfAssessmentRecord>(
-                        `${API_BASE_URL}/api/self-assessments/${id}`
-                      ),
-
-                      fetchJsonOrNull<AssessorAssessmentRecord>(
-                        `${API_BASE_URL}/api/assessments/${id}`
-                      ),
-
-                      fetchJsonOrNull<EvidenceRecord[]>(
-                        `${API_BASE_URL}/api/evidence/reflection/${id}`
-                      ),
-                    ]
-                  );
-
-                return {
-                  assessment,
-                  evidence:
-                    evidence || [],
-                  reflection,
-                  selfAssessment,
-                };
-              }
-            )
-          );
-
-        const html =
-          buildPortfolioHtml(
-            portfolioItems
-          );
-
-        if (
-          Platform.OS ===
-          "web"
-        ) {
-          await Print.printAsync(
-            {
-              html,
-            }
-          );
-
-          return;
-        }
-
-        const { uri } =
-          await Print.printToFileAsync(
-            {
-              html,
-            }
-          );
-
-        const canShare =
-          await Sharing.isAvailableAsync();
-
-        if (!canShare) {
-          Alert.alert(
-            "PDF generated",
-            `The portfolio PDF was created at: ${uri}`
-          );
-
-          return;
-        }
-
-        await Sharing.shareAsync(
-          uri,
-          {
-            dialogTitle:
-              "Save or share portfolio",
-            mimeType:
-              "application/pdf",
-            UTI:
-              "com.adobe.pdf",
-          }
-        );
-      } catch (error) {
-        console.error(
-          "Export portfolio error:",
-          error
-        );
-
-        Alert.alert(
-          "Export failed",
-          "Could not export the portfolio. Please check the backend connection and try again."
-        );
-      } finally {
-        setIsExporting(false);
+        preview.opener = null;
+        preview.document.title = "Preparing portfolio";
+        preview.document.body.textContent = "Preparing your portfolio...";
       }
-    };
 
-  const hasSearch =
-    searchText.trim().length > 0;
+      const response = await fetch(
+        `${API_BASE_URL}/api/reflections`,
+        { signal: controller.signal }
+      );
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+      const data: ApiReflection[] = await response.json();
+      if (!Array.isArray(data)) throw new Error("Invalid reflection response");
+      if (data.length === 0) {
+        preview?.close();
+        setExportMessage("Nothing to export yet. Save a reflection first, then try again.");
+        return;
+      }
+
+      // Retain the team's scores, feedback and evidence names in portfolio exports.
+      const portfolioItems: PortfolioReflection[] = [];
+      for (const reflection of data) {
+        const id = reflection.id;
+        const [selfAssessment, assessment, evidence] = await Promise.all([
+          fetchJsonOrNull<SelfAssessmentRecord>(`${API_BASE_URL}/api/self-assessments/${id}`, controller.signal),
+          fetchJsonOrNull<AssessorAssessmentRecord>(`${API_BASE_URL}/api/assessments/${id}`, controller.signal),
+          fetchJsonOrNull<EvidenceRecord[]>(`${API_BASE_URL}/api/evidence/reflection/${id}`, controller.signal),
+        ]);
+        portfolioItems.push({ reflection, selfAssessment, assessment, evidence: evidence || [] });
+      }
+      clearTimeout(timeout);
+      const html = buildPortfolioHtml(portfolioItems);
+      if (Platform.OS === "web") {
+        if (!preview || preview.closed) {
+          setExportMessage("The preview was closed. Click Export Portfolio to open it again.");
+          return;
+        }
+        preview.document.open();
+        preview.document.write(html);
+        preview.document.close();
+        const printWindow = preview;
+        preview.document.getElementById("print-portfolio")?.addEventListener("click", () => {
+          printWindow.focus();
+          printWindow.print();
+        });
+        setExportMessage("Portfolio preview opened. Click Print / Save as PDF in the new tab, then choose Save as PDF.");
+        return;
+      }
+
+      if (await Sharing.isAvailableAsync()) {
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          UTI: "com.adobe.pdf",
+          dialogTitle: "Export Reflection Portfolio",
+        });
+        setExportMessage("PDF generated. Use the share options to save or send it.");
+      } else {
+        await Print.printAsync({ html });
+        setExportMessage("The print dialog was opened for your portfolio.");
+      }
+    } catch (error) {
+      preview?.close();
+      console.error("Export portfolio error:", error);
+      setExportMessage("Could not export the portfolio. Check your backend connection and try again.");
+    } finally {
+      clearTimeout(timeout);
+      exporting.current = false;
+      setIsExporting(false);
+    }
+  };
 
   const isFilteredOrSearched =
     activeFilter !== "All" ||
-    hasSearch;
+    searchText.trim()
+      .length > 0;
 
   // ====================================================
   // SCREEN
@@ -729,9 +640,12 @@ export default function ReflectionList() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={
+        styles.container
+      }
       behavior={
-        Platform.OS === "ios"
+        Platform.OS ===
+        "ios"
           ? "padding"
           : "height"
       }
@@ -740,24 +654,42 @@ export default function ReflectionList() {
         contentContainerStyle={
           styles.scrollContent
         }
-        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.content}>
+        <View
+          style={
+            styles.content
+          }
+        >
           {/* HEADER */}
 
-          <Text style={styles.title}>
+          <Text
+            style={
+              styles.title
+            }
+          >
             Reflection History
           </Text>
 
-          <Text style={styles.subtitle}>
-            View and search all of your
-            reflections.
+          <Text
+            style={
+              styles.subtitle
+            }
+          >
+            View all of your reflections.
           </Text>
+
+          {!!loadError && (
+            <Text accessibilityRole="alert" style={styles.errorMessage}>
+              {loadError}
+            </Text>
+          )}
 
           {/* FILTER TABS */}
 
           <View
-            style={styles.filterRow}
+            style={
+              styles.filterRow
+            }
           >
             {FILTERS.map(
               (filter) => {
@@ -767,7 +699,9 @@ export default function ReflectionList() {
 
                 return (
                   <Pressable
-                    key={filter}
+                    key={
+                      filter
+                    }
                     style={[
                       styles.filterPill,
 
@@ -796,39 +730,13 @@ export default function ReflectionList() {
             )}
           </View>
 
-          {/* SEARCH SUMMARY */}
-
-          {hasSearch && (
-            <View
-              style={
-                styles.searchSummary
-              }
-            >
-              <Ionicons
-                name="sparkles-outline"
-                size={16}
-                color="#3F2A88"
-              />
-
-              <Text
-                style={
-                  styles.searchSummaryText
-                }
-              >
-                {filteredReflections.length}{" "}
-                relevant{" "}
-                {filteredReflections.length ===
-                1
-                  ? "reflection"
-                  : "reflections"}{" "}
-                found
-              </Text>
-            </View>
-          )}
-
           {/* REFLECTION LIST */}
 
-          <View style={styles.list}>
+          <View
+            style={
+              styles.list
+            }
+          >
             {isLoading ? (
               <View
                 style={
@@ -848,7 +756,9 @@ export default function ReflectionList() {
                 {filteredReflections.map(
                   (item) => (
                     <Pressable
-                      key={item.id}
+                      key={
+                        item.id
+                      }
                       style={({
                         pressed,
                       }) => [
@@ -869,10 +779,14 @@ export default function ReflectionList() {
                         }
                       >
                         <Ionicons
-                          name={iconFor(
-                            item.status
-                          )}
-                          size={20}
+                          name={
+                            iconFor(
+                              item.status
+                            )
+                          }
+                          size={
+                            20
+                          }
                           color="#3F2A88"
                         />
                       </View>
@@ -886,9 +800,13 @@ export default function ReflectionList() {
                           style={
                             styles.cardTitle
                           }
-                          numberOfLines={1}
+                          numberOfLines={
+                            1
+                          }
                         >
-                          {item.title}
+                          {
+                            item.title
+                          }
                         </Text>
 
                         {item.status ===
@@ -943,7 +861,9 @@ export default function ReflectionList() {
                                 },
                               ]}
                             >
-                              {item.status}
+                              {
+                                item.status
+                              }
                             </Text>
 
                             <Text
@@ -952,8 +872,9 @@ export default function ReflectionList() {
                               }
                             >
                               Updated{" "}
-                              {item.submittedDate ??
-                                "date unavailable"}
+                              {
+                                item.submittedDate
+                              }
                             </Text>
                           </>
                         )}
@@ -961,14 +882,16 @@ export default function ReflectionList() {
 
                       <Ionicons
                         name="chevron-forward"
-                        size={20}
+                        size={
+                          20
+                        }
                         color="#888"
                       />
                     </Pressable>
                   )
                 )}
 
-                {filteredReflections.length ===
+                {!loadError && filteredReflections.length ===
                   0 && (
                   <View
                     style={
@@ -980,25 +903,10 @@ export default function ReflectionList() {
                         styles.emptyStateText
                       }
                     >
-                      {hasSearch
-                        ? "No reflections match this search."
-                        : activeFilter !==
-                            "All"
-                          ? "No reflections match this filter."
-                          : "You haven't created any reflections yet."}
+                      {isFilteredOrSearched
+                        ? "No reflections match this filter."
+                        : "You haven't created any reflections yet."}
                     </Text>
-
-                    {hasSearch && (
-                      <Text
-                        style={
-                          styles.emptyStateSubtext
-                        }
-                      >
-                        Try a different topic,
-                        challenge or related
-                        word.
-                      </Text>
-                    )}
 
                     {!isFilteredOrSearched && (
                       <Text
@@ -1006,9 +914,7 @@ export default function ReflectionList() {
                           styles.emptyStateSubtext
                         }
                       >
-                        Tap &quot;Create New
-                        Reflection&quot; below
-                        to get started.
+                        Tap &quot;Create New Reflection&quot; below to get started.
                       </Text>
                     )}
                   </View>
@@ -1020,7 +926,9 @@ export default function ReflectionList() {
           {/* CREATE NEW REFLECTION */}
 
           <Pressable
-            style={({ pressed }) => [
+            style={({
+              pressed,
+            }) => [
               styles.primaryButton,
 
               pressed &&
@@ -1034,7 +942,9 @@ export default function ReflectionList() {
           >
             <Ionicons
               name="add"
-              size={18}
+              size={
+                18
+              }
               color="#FFF"
             />
 
@@ -1048,21 +958,26 @@ export default function ReflectionList() {
           </Pressable>
 
           {/* EXPORT */}
+          <Text style={styles.exportHint}>
+            Exports all saved reflections, including drafts, regardless of the current filter or search.
+          </Text>
+          {!!exportMessage && (
+            <Text accessibilityRole="alert" style={styles.exportMessage}>
+              {exportMessage}
+            </Text>
+          )}
 
           <Pressable
-            disabled={
-              isExporting
-            }
+            accessibilityRole="button"
+            accessibilityLabel="Export Portfolio"
+            disabled={isExporting}
             style={({
               pressed,
             }) => [
               styles.secondaryButton,
-
-              isExporting &&
-                styles.disabledButton,
+              isExporting && styles.disabledButton,
 
               pressed &&
-                !isExporting &&
                 styles.primaryButtonPressed,
             ]}
             onPress={
@@ -1071,7 +986,9 @@ export default function ReflectionList() {
           >
             <Ionicons
               name="share-outline"
-              size={18}
+              size={
+                18
+              }
               color="#3F2A88"
             />
 
@@ -1080,53 +997,73 @@ export default function ReflectionList() {
                 styles.secondaryButtonText
               }
             >
-              {isExporting
-                ? "Exporting Portfolio..."
-                : "Export Portfolio"}
+              {isExporting ? "Exporting..." : "Export Portfolio"}
             </Text>
           </Pressable>
         </View>
       </ScrollView>
 
-      {/* LOCAL SEMANTIC SEARCH BAR */}
+      {/* SEARCH BAR */}
 
-      <View style={styles.searchBarRow}>
-        <View style={styles.searchBar}>
+      <View
+        style={
+          styles.searchBarRow
+        }
+      >
+        <View
+          style={
+            styles.searchBar
+          }
+        >
           <Ionicons
             name="search"
-            size={18}
-            color="#666"
+            size={
+              18
+            }
+            color="#888"
           />
 
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search by topic, challenge or learning"
-            placeholderTextColor="#777"
-            value={searchText}
-            onChangeText={setSearchText}
-            returnKeyType="search"
-            clearButtonMode="never"
-            accessibilityLabel="Search reflections by meaning"
+            style={
+              styles.searchInput
+            }
+            placeholder="Search reflections"
+            placeholderTextColor="#999"
+            value={
+              searchText
+            }
+            onChangeText={
+              setSearchText
+            }
           />
 
           <Ionicons
-            name="sparkles-outline"
-            size={18}
-            color="#3F2A88"
+            name="mic-outline"
+            size={
+              18
+            }
+            color="#888"
           />
         </View>
 
-        {searchText.length > 0 && (
+        {searchText.length >
+          0 && (
           <Pressable
-            style={styles.searchClear}
+            style={
+              styles.searchClear
+            }
             onPress={() =>
-              setSearchText("")
+              setSearchText(
+                ""
+              )
             }
             accessibilityLabel="Clear search"
           >
             <Ionicons
               name="close"
-              size={18}
+              size={
+                18
+              }
               color="#000"
             />
           </Pressable>
@@ -1140,213 +1077,233 @@ export default function ReflectionList() {
 // STYLES
 // ======================================================
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F8F8",
-  },
+const styles =
+  StyleSheet.create({
+    errorMessage: { color: "#B42318", marginBottom: 16, fontSize: 14 },
+    exportMessage: { color: "#3F2A88", marginBottom: 12, fontSize: 14 },
+    exportHint: { color: "#555", marginBottom: 10, fontSize: 13 },
+    disabledButton: { opacity: 0.6 },
+    container: {
+      flex: 1,
+      backgroundColor:
+        "#F8F8F8",
+    },
 
-  scrollContent: {
-    paddingBottom: 20,
-  },
+    scrollContent: {
+      paddingBottom: 20,
+    },
 
-  content: {
-    width: "90%",
-    alignSelf: "center",
-    paddingTop: 15,
-  },
+    content: {
+      width: "90%",
+      alignSelf:
+        "center",
+      paddingTop: 15,
+    },
 
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#000",
-  },
+    title: {
+      fontSize: 22,
+      fontWeight:
+        "bold",
+      color: "#000",
+    },
 
-  subtitle: {
-    fontSize: 14,
-    color: "#555",
-    marginTop: 3,
-    marginBottom: 20,
-  },
+    subtitle: {
+      fontSize: 14,
+      color: "#555",
+      marginTop: 3,
+      marginBottom: 20,
+    },
 
-  filterRow: {
-    flexDirection: "row",
-    backgroundColor: "#EFEBFB",
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
+    filterRow: {
+      flexDirection:
+        "row",
+      backgroundColor:
+        "#EFEBFB",
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 20,
+    },
 
-  filterPill: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: "center",
-  },
+    filterPill: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 10,
+      alignItems:
+        "center",
+    },
 
-  filterPillActive: {
-    backgroundColor: "#3F2A88",
-  },
+    filterPillActive: {
+      backgroundColor:
+        "#3F2A88",
+    },
 
-  filterText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#3F2A88",
-  },
+    filterText: {
+      fontSize: 13,
+      fontWeight:
+        "600",
+      color: "#3F2A88",
+    },
 
-  filterTextActive: {
-    color: "#FFFFFF",
-  },
+    filterTextActive: {
+      color: "#FFFFFF",
+    },
 
-  searchSummary: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#EFEBFB",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    marginBottom: 14,
-  },
+    list: {
+      gap: 12,
+      marginBottom: 25,
+    },
 
-  searchSummaryText: {
-    flex: 1,
-    color: "#3F2A88",
-    fontSize: 13,
-    fontWeight: "600",
-  },
+    card: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1,
+      borderColor:
+        "#E5E5E5",
+      borderRadius: 14,
+      padding: 14,
+      gap: 12,
+    },
 
-  list: {
-    gap: 12,
-    marginBottom: 25,
-  },
+    cardPressed: {
+      opacity: 0.78,
 
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E5E5",
-    borderRadius: 14,
-    padding: 14,
-    gap: 12,
-  },
+      transform: [
+        {
+          scale: 0.99,
+        },
+      ],
+    },
 
-  cardPressed: {
-    opacity: 0.78,
-    transform: [
-      {
-        scale: 0.99,
-      },
-    ],
-  },
+    cardIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor:
+        "#EFEBFB",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+    },
 
-  cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#EFEBFB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    cardInfo: {
+      flex: 1,
+    },
 
-  cardInfo: {
-    flex: 1,
-  },
+    cardTitle: {
+      fontSize: 15,
+      fontWeight:
+        "700",
+      color: "#000",
+      marginBottom: 4,
+    },
 
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#000",
-    marginBottom: 4,
-  },
+    statusText: {
+      fontSize: 12,
+      fontWeight:
+        "700",
+      marginBottom: 5,
+    },
 
-  statusText: {
-    fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 5,
-  },
+    cardMeta: {
+      fontSize: 12,
+      color: "#888",
+    },
 
-  cardMeta: {
-    fontSize: 12,
-    color: "#888",
-  },
+    progressTrack: {
+      height: 5,
+      borderRadius: 3,
+      backgroundColor:
+        "#E5E5E5",
+      overflow:
+        "hidden",
+      width: "90%",
+    },
 
-  progressTrack: {
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#E5E5E5",
-    overflow: "hidden",
-    width: "90%",
-  },
+    progressFill: {
+      height: "100%",
+      backgroundColor:
+        "#3F2A88",
+      borderRadius: 3,
+    },
 
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#3F2A88",
-    borderRadius: 3,
-  },
+    emptyState: {
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1,
+      borderColor:
+        "#E5E5E5",
+      borderRadius: 12,
+      paddingVertical: 24,
+      paddingHorizontal: 20,
+      alignItems:
+        "center",
+    },
 
-  emptyState: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E5E5",
-    borderRadius: 12,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    alignItems: "center",
-  },
+    emptyStateText: {
+      color: "#555",
+      fontSize: 14,
+      fontWeight:
+        "600",
+      textAlign:
+        "center",
+    },
 
-  emptyStateText: {
-    color: "#555",
-    fontSize: 14,
-    fontWeight: "600",
-    textAlign: "center",
-  },
+    emptyStateSubtext: {
+      color: "#888",
+      fontSize: 13,
+      textAlign:
+        "center",
+      marginTop: 6,
+    },
 
-  emptyStateSubtext: {
-    color: "#888",
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 6,
-  },
+    primaryButton: {
+      width: "100%",
+      height: 50,
+      backgroundColor:
+        "#3F2A88",
+      borderRadius: 15,
+      flexDirection:
+        "row",
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
+      gap: 8,
+      marginBottom: 12,
+    },
 
-  primaryButton: {
-    width: "100%",
-    height: 50,
-    backgroundColor: "#3F2A88",
-    borderRadius: 15,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
+    secondaryButton: {
+      width: "100%",
+      height: 50,
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1.5,
+      borderColor:
+        "#3F2A88",
+      borderRadius: 15,
+      flexDirection:
+        "row",
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
+      gap: 8,
+      marginBottom: 12,
+    },
 
-  secondaryButton: {
-    width: "100%",
-    height: 50,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#3F2A88",
-    borderRadius: 15,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
+    primaryButtonPressed: {
+      opacity: 0.8,
 
-  primaryButtonPressed: {
-    opacity: 0.8,
-    transform: [
-      {
-        scale: 0.99,
-      },
-    ],
-  },
-
-    disabledButton: {
-      opacity: 0.6,
+      transform: [
+        {
+          scale: 0.99,
+        },
+      ],
     },
 
     primaryButtonText: {
@@ -1356,48 +1313,58 @@ const styles = StyleSheet.create({
         "600",
     },
 
-  secondaryButtonText: {
-    color: "#3F2A88",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+    secondaryButtonText: {
+      color: "#3F2A88",
+      fontSize: 16,
+      fontWeight:
+        "600",
+    },
 
-  searchBarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: "5%",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
-    backgroundColor: "#F8F8F8",
-  },
+    searchBarRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 10,
+      paddingHorizontal:
+        "5%",
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor:
+        "#E5E5E5",
+      backgroundColor:
+        "#F8F8F8",
+    },
 
-  searchBar: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#EDEDED",
-    borderWidth: 1,
-    borderColor: "#DDD8EE",
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    height: 46,
-  },
+    searchBar: {
+      flex: 1,
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 8,
+      backgroundColor:
+        "#EDEDED",
+      borderRadius: 25,
+      paddingHorizontal: 15,
+      height: 44,
+    },
 
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#000",
-  },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: "#000",
+    },
 
-  searchClear: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#EDEDED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+    searchClear: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor:
+        "#EDEDED",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+    },
+  });
