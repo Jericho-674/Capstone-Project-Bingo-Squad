@@ -336,16 +336,35 @@ export default function NewReflection() {
           </View>
         </View>
 
+                {!!errorMessage && (
+          <Text
+            accessibilityRole="alert"
+            style={{ color: "#B42318", marginBottom: 12 }}
+          >
+            {errorMessage}
+          </Text>
+        )}
+
         {/* Continue */}
         <Pressable
-          style={[styles.continueButton, isLoading && styles.disabledButton]}
-          onPress={handleContinue}
+          style={[
+            styles.continueButton,
+            isLoading && styles.disabledButton,
+          ]}
+          onPress={() => handleContinue()}
           disabled={isLoading}
         >
           <Text style={styles.continueButtonText}>
             {isLoading ? "Creating..." : "Continue"}
           </Text>
         </Pressable>
+
+        {/* Save and Exit / Exit without Saving */}
+        <ReflectionExitActions
+          busy={isLoading}
+          onSaveAndExit={() => handleContinue(true)}
+          onExit={handleExit}
+        />
       </View>
     </ScrollView>
   );
