@@ -1,9 +1,8 @@
 ﻿import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useEffect, useMemo, useState } from "react";
-
+import { useCallback, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../services/api";
 import {
   rankReflections,
@@ -383,13 +382,11 @@ export default function ReflectionList() {
   // LOAD REFLECTIONS
   // ====================================================
 
-  const loadReflections = async () => {
-    try {
+    const loadReflections = useCallback(async () => {
+     try {
       setIsLoading(true);
 
-      console.log(
-        "Loading reflections from backend..."
-      );
+      console.log("Loading reflections from backend...");
 
       const response = await fetch(
         `${API_BASE_URL}/api/reflections`
@@ -404,25 +401,18 @@ export default function ReflectionList() {
       const data =
         (await response.json()) as ApiReflection[];
 
-      console.log(
-        "Reflections received:",
-        data
-      );
+      console.log("Reflections received:", data);
 
-      const formattedReflections:
-        ReflectionItem[] = data.map(
+      const formattedReflections: ReflectionItem[] = data.map(
         (item) => {
-          const normalisedStatus =
-            String(
-              item.status ?? ""
-            ).toLowerCase();
+          const normalisedStatus = String(
+            item.status ?? ""
+          ).toLowerCase();
 
           const status: Status =
-            normalisedStatus ===
-            "submitted"
+            normalisedStatus === "submitted"
               ? "Submitted"
-              : normalisedStatus ===
-                  "assessed"
+              : normalisedStatus === "assessed"
                 ? "Assessed"
                 : "Draft";
 
@@ -430,66 +420,42 @@ export default function ReflectionList() {
             id: String(item.id),
 
             title:
-              item.title?.trim() ||
-              "Untitled Reflection",
+              item.title?.trim() || "Untitled Reflection",
 
             status,
 
             submittedDate:
-              normalisedStatus !==
-                "draft" &&
-              item.updated_at
-                ? new Date(
-                    item.updated_at
-                  ).toLocaleDateString()
+              normalisedStatus !== "draft" && item.updated_at
+                ? new Date(item.updated_at).toLocaleDateString()
                 : undefined,
 
             progress:
-              normalisedStatus ===
-              "draft"
-                ? 0.5
-                : undefined,
+              normalisedStatus === "draft" ? 0.5 : undefined,
 
-            projectGroup:
-              item.project_group,
-
-            workedOn:
-              item.worked_on,
-
-            challenges:
-              item.challenges,
-
-            learned:
-              item.learned,
-
-            improvement:
-              item.improvement,
-
-            otherReflection:
-              item.other_reflection,
-
-            updatedAt:
-              item.updated_at,
+            projectGroup: item.project_group,
+            workedOn: item.worked_on,
+            challenges: item.challenges,
+            learned: item.learned,
+            improvement: item.improvement,
+            otherReflection: item.other_reflection,
+            updatedAt: item.updated_at,
           };
         }
       );
 
-      setReflections(
-        formattedReflections
-      );
+      setReflections(formattedReflections);
     } catch (error) {
-      console.error(
-        "Error loading reflections:",
-        error
-      );
+      console.error("Error loading reflections:", error);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadReflections();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadReflections();
+    }, [loadReflections])
+  );
 
   // ====================================================
   // OPEN EXISTING REFLECTION
