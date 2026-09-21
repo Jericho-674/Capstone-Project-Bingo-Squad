@@ -218,11 +218,65 @@ const submitReflection = (req, res) => {
   });
 };
 
+// DELETE a draft. Keep the status guard in the DELETE itself so a reflection
+// submitted after the client loaded it cannot be deleted by a stale request.
+const deleteReflection = (req, res) => {
+  const { id } = req.params;
+
+  if (
+    typeof id !== "string" ||
+    !/^[1-9]\d*$/.test(id) ||
+    !Number.isSafeInteger(Number(id))
+  ) {
+    return res.status(400).json({
+      message: "Reflection ID must be a positive integer"
+    });
+  }
+
+  const reflectionId = Number(id);
+  const sql = "DELETE FROM reflections WHERE id = ? AND status = 'draft'";
+
+  // Related database rows are removed by the schema's ON DELETE CASCADE rules.
+  // Uploaded files are retained; file URLs must not be treated as trusted paths.
+  db.query(sql, [reflectionId], (err, result) => {
+    if (err) {
+      console.error("Error deleting draft:", err);
+      return res.status(500).json({ message: "Failed to delete draft" });
+    }
+
+    if (result.affectedRows > 0) {
+      return res.status(200).json({ message: "Draft deleted successfully" });
+    }
+
+    // This lookup explains why no row was deleted; it never authorizes another
+    // DELETE, even if a concurrent request changes the status during the lookup.
+    db.query(
+      "SELECT id FROM reflections WHERE id = ?",
+      [reflectionId],
+      (lookupError, rows) => {
+        if (lookupError) {
+          console.error("Error checking draft deletion:", lookupError);
+          return res.status(500).json({ message: "Failed to delete draft" });
+        }
+
+        if (rows.length === 0) {
+          return res.status(404).json({ message: "Reflection not found" });
+        }
+
+        return res.status(409).json({
+          message: "Only draft reflections can be deleted"
+        });
+      }
+    );
+  });
+};
+
 // Export controller functions
 module.exports = {
   getAllReflections,
   getReflectionById,
   createReflection,
   updateReflection,
-  submitReflection
+  submitReflection,
+  deleteReflection
 };

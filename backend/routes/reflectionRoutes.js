@@ -6,7 +6,8 @@ const {
   getReflectionById,
   createReflection,
   updateReflection,
-  submitReflection
+  submitReflection,
+  deleteReflection
 } = require("../controllers/reflectionController");
 
 // GET all reflections
@@ -23,5 +24,8 @@ router.put("/:id", updateReflection);
 
 // SUBMIT reflection
 router.put("/:id/submit", submitReflection);
+
+// DELETE draft reflection
+router.delete("/:id", deleteReflection);
 
 module.exports = router;

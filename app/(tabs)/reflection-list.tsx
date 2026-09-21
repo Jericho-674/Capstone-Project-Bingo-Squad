@@ -5,6 +5,8 @@ import * as Sharing from "expo-sharing";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { rankReflections, type SearchableReflection } from "../../services/reflectionSearch";
+import { DeleteDraftDialog } from "../../components/delete-draft-dialog";
+import { deleteReflectionDraft } from "../../services/reflectionDrafts";
 
 import { API_BASE_URL } from "../../services/api";
 
@@ -30,6 +32,7 @@ interface ReflectionItem extends SearchableReflection {
   status: Status;
   submittedDate?: string;
   progress?: number;
+  canDeleteDraft: boolean;
 }
 
 type ReflectionRecord = {
@@ -360,6 +363,12 @@ export default function ReflectionList() {
   const [exportMessage, setExportMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const exporting = useRef(false);
+  const [draftToDelete, setDraftToDelete] = useState<ReflectionItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const deleting = useRef(false);
+  const deletedDraftIds = useRef(new Set<string>());
   const [
     reflections,
     setReflections,
@@ -408,12 +417,14 @@ export default function ReflectionList() {
         if (!Array.isArray(data)) throw new Error("Invalid reflection response");
         if (!active) return;
 
-        setReflections(data.map(item => {
+        setReflections(data.filter(item => !deletedDraftIds.current.has(String(item.id))).map(item => {
           const status = normaliseStatus(item.status);
           return {
             id: String(item.id),
             title: item.title?.trim() || "Untitled Reflection",
             status,
+            // Unknown statuses must not acquire a destructive action through the display fallback.
+            canDeleteDraft: item.status === "draft",
             submittedDate: status !== "Draft" && item.updated_at
               ? new Date(item.updated_at).toLocaleDateString()
               : undefined,
@@ -444,6 +455,34 @@ export default function ReflectionList() {
       controller.abort();
     };
   }, []));
+
+  const handleRequestDelete = (item: ReflectionItem) => {
+    if (!item.canDeleteDraft || deleting.current) return;
+    setDeleteError("");
+    setDeleteMessage("");
+    setDraftToDelete(item);
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!draftToDelete?.canDeleteDraft || deleting.current) return;
+    const draft = draftToDelete;
+    deleting.current = true;
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      await deleteReflectionDraft(API_BASE_URL, draft.id);
+      deletedDraftIds.current.add(draft.id);
+      setReflections(current => current.filter(item => item.id !== draft.id));
+      setDraftToDelete(null);
+      setDeleteMessage(`Draft “${draft.title}” deleted.`);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Could not delete this draft. Please try again.");
+    } finally {
+      deleting.current = false;
+      setIsDeleting(false);
+    }
+  };
 
   // ====================================================
   // OPEN EXISTING REFLECTION
@@ -683,6 +722,9 @@ export default function ReflectionList() {
               {loadError}
             </Text>
           )}
+          {!!deleteMessage && (
+            <Text accessibilityRole="alert" style={styles.exportMessage}>{deleteMessage}</Text>
+          )}
 
           {/* FILTER TABS */}
 
@@ -755,14 +797,15 @@ export default function ReflectionList() {
               <>
                 {filteredReflections.map(
                   (item) => (
+                    <View key={item.id} style={styles.card}>
                     <Pressable
-                      key={
-                        item.id
-                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${item.title}`}
+                      disabled={isDeleting}
                       style={({
                         pressed,
                       }) => [
-                        styles.card,
+                        styles.cardOpenButton,
 
                         pressed &&
                           styles.cardPressed,
@@ -888,6 +931,19 @@ export default function ReflectionList() {
                         color="#888"
                       />
                     </Pressable>
+                    {item.canDeleteDraft && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete draft ${item.title}`}
+                        disabled={isDeleting}
+                        onPress={() => handleRequestDelete(item)}
+                        style={({ pressed }) => [styles.deleteDraftButton, pressed && styles.cardPressed, isDeleting && styles.disabledButton]}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#B42318" />
+                        <Text style={styles.deleteDraftText}>Delete draft</Text>
+                      </Pressable>
+                    )}
+                    </View>
                   )
                 )}
 
@@ -1069,6 +1125,14 @@ export default function ReflectionList() {
           </Pressable>
         )}
       </View>
+      <DeleteDraftDialog
+        visible={draftToDelete !== null}
+        title={draftToDelete?.title ?? ""}
+        busy={isDeleting}
+        error={deleteError}
+        onCancel={() => { if (!deleting.current) setDraftToDelete(null); }}
+        onConfirm={() => { void handleDeleteDraft(); }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1154,10 +1218,6 @@ const styles =
     },
 
     card: {
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
       backgroundColor:
         "#FFFFFF",
       borderWidth: 1,
@@ -1167,6 +1227,10 @@ const styles =
       padding: 14,
       gap: 12,
     },
+
+    cardOpenButton: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 60 },
+    deleteDraftButton: { minHeight: 44, paddingHorizontal: 12, alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: "#F2C5C0", borderRadius: 10, backgroundColor: "#FFF5F4" },
+    deleteDraftText: { color: "#B42318", fontWeight: "600", fontSize: 14 },
 
     cardPressed: {
       opacity: 0.78,

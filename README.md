@@ -35,6 +35,27 @@ npm run reset-project
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
+## Delete a saved draft
+
+Open **Reflection History**, find a draft (or select the **Draft** filter), and
+choose **Delete draft**. Confirm deletion in the dialog, or choose **Cancel** to
+keep it. The same confirmation works on Android, iOS, and web.
+
+The backend must be running with the new `DELETE /api/reflections/:id` route.
+It deletes only a reflection whose database status is still `draft`; submitted
+and assessed reflections are rejected even if the history screen is out of date.
+The card disappears only after the server confirms deletion. Errors leave it
+visible, and filters/search remain unchanged.
+
+Deletion is permanent. The schema's existing foreign-key cascades remove linked
+self-assessment, assessment, and evidence records. Physical files already stored
+in `backend/uploads` are retained; this action does not erase uploaded files from disk.
+
+Run the request tests with `npm test` and the backend guard tests with
+`npm --prefix backend test`. Backend tests use a simulated database and do not
+delete real reflections. The existing backend has no authentication; draft-only
+validation does not provide per-student authorization.
+
 ## Learn more
 
 To learn more about developing your project with Expo, look at the following resources:
