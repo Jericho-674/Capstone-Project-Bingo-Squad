@@ -61,7 +61,7 @@ export default function RoleSelection() {
 
         <Pressable
           style={[styles.roleButton, styles.assessorButton]}
-          onPress={() => {}}
+          onPress={() => router.push("/(tabs)/assessor-queue")}
         >
           <Ionicons name="clipboard-outline" size={28} color="#FFFFFF" />
 
