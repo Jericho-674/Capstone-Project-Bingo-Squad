@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { API_BASE_URL } from "../../services/api";
 
 interface Reflection {
@@ -29,6 +28,20 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) {
+      return "Good Morning!";
+    } else if (hour < 18) {
+      return "Good Afternoon!";
+    } else {
+      return "Good Evening!";
+    }
+  };
+
+  const greeting = getGreeting();
 
   const loadReflections = useCallback(async () => {
     try {
@@ -57,7 +70,7 @@ export default function HomeScreen() {
     useCallback(() => {
       setIsLoading(true);
       loadReflections();
-    }, [loadReflections])
+    }, [loadReflections]),
   );
 
   const handleRefresh = () => {
@@ -67,8 +80,11 @@ export default function HomeScreen() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
+
     const date = new Date(dateString);
+
     if (Number.isNaN(date.getTime())) return dateString;
+
     return date.toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
@@ -124,13 +140,11 @@ export default function HomeScreen() {
       >
         {/* Greeting */}
         <View style={styles.greeting}>
-          <Text style={styles.title}>Good Morning, (Name)!</Text>
+          <Text style={styles.title}>{greeting}</Text>
           <Text style={styles.subtitle}>Keep reflecting. Keep growing!</Text>
         </View>
 
-        {!!errorMessage && (
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        )}
+        {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
         {/* Continue Draft */}
         <View style={styles.draftCard}>
@@ -150,9 +164,11 @@ export default function HomeScreen() {
               <Text style={styles.draftName} numberOfLines={1}>
                 {draftReflection.title}
               </Text>
+
               <Text style={styles.draftMeta}>
                 {draftReflection.project_group}
               </Text>
+
               <Text style={styles.draftContinueText}>Tap to continue →</Text>
             </Pressable>
           ) : (
@@ -203,6 +219,7 @@ export default function HomeScreen() {
                   <Text style={styles.reflectionTitle} numberOfLines={1}>
                     {item.title}
                   </Text>
+
                   <Text style={styles.reflectionMeta}>
                     {statusLabel(item.status)} ·{" "}
                     {formatDate(item.reflection_date)}
