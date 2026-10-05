@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Print from "expo-print";
 import { router, useFocusEffect } from "expo-router";
-import * as Sharing from "expo-sharing";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { rankReflections, type SearchableReflection } from "../../services/reflectionSearch";
 import { DeleteDraftDialog } from "../../components/delete-draft-dialog";
 import { deleteReflectionDraft } from "../../services/reflectionDrafts";
+import { exportNativePortfolio, NativePortfolioExportError } from "../../services/nativePortfolioExport";
 
 import { API_BASE_URL } from "../../services/api";
 
@@ -586,6 +585,7 @@ export default function ReflectionList() {
     setExportMessage("");
 
     let preview: Window | null = null;
+    let exportStage: "loading" | "exporting" = "loading";
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -627,6 +627,7 @@ export default function ReflectionList() {
         portfolioItems.push({ reflection, selfAssessment, assessment, evidence: evidence || [] });
       }
       clearTimeout(timeout);
+      exportStage = "exporting";
       const html = buildPortfolioHtml(portfolioItems);
       if (Platform.OS === "web") {
         if (!preview || preview.closed) {
@@ -645,22 +646,24 @@ export default function ReflectionList() {
         return;
       }
 
-      if (await Sharing.isAvailableAsync()) {
-        const { uri } = await Print.printToFileAsync({ html });
-        await Sharing.shareAsync(uri, {
-          mimeType: "application/pdf",
-          UTI: "com.adobe.pdf",
-          dialogTitle: "Export Reflection Portfolio",
-        });
-        setExportMessage("PDF generated. Use the share options to save or send it.");
+      const result = await exportNativePortfolio(html, Platform.OS);
+      if (result === "shared") {
+        setExportMessage("PDF share options opened. Choose an app to save or send it. If you dismissed them, tap Export Portfolio to try again.");
+      } else if (result === "cancelled") {
+        setExportMessage("Export cancelled. Tap Export Portfolio whenever you are ready to try again.");
       } else {
-        await Print.printAsync({ html });
-        setExportMessage("The print dialog was opened for your portfolio.");
+        setExportMessage(Platform.OS === "android"
+          ? "Portfolio print dialog opened. Choose Save as PDF from the printer list, then tap the PDF/save button. If you closed it, tap Export Portfolio to try again."
+          : "The print dialog opened for your portfolio.");
       }
     } catch (error) {
       preview?.close();
-      console.error("Export portfolio error:", error);
-      setExportMessage("Could not export the portfolio. Check your backend connection and try again.");
+      console.warn("Export portfolio error:", error);
+      setExportMessage(error instanceof NativePortfolioExportError
+        ? error.message
+        : exportStage === "loading"
+          ? "Could not load the portfolio. Check your backend connection and try again."
+          : "Your portfolio loaded, but the export could not be prepared. Please try again.");
     } finally {
       clearTimeout(timeout);
       exporting.current = false;
